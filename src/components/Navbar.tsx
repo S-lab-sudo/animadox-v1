@@ -113,13 +113,13 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2">
-            <Link href="/browse" className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
+            <Link href="/browse" prefetch={false} className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
               Browse
             </Link>
-            <Link href="/updates" className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
+            <Link href="/updates" prefetch={false} className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
               Updates
             </Link>
-            <Link href="/library" className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
+            <Link href="/library" prefetch={false} className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
               Library
             </Link>
           </div>
@@ -199,6 +199,7 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                     <div className="flex flex-col gap-0">
                       <Link 
                         href="/browse" 
+                        prefetch={false}
                         className="text-lg text-foreground hover:text-orange-500 hover:bg-orange-500/10 transition-colors border-b border-border px-4 py-4"
                         onClick={() => setMobileOpen(false)}
                       >
@@ -206,6 +207,7 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                       </Link>
                       <Link 
                         href="/updates" 
+                        prefetch={false}
                         className="text-lg text-foreground hover:text-orange-500 hover:bg-orange-500/10 transition-colors border-b border-border px-4 py-4"
                         onClick={() => setMobileOpen(false)}
                       >
@@ -213,6 +215,7 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                       </Link>
                       <Link 
                         href="/library" 
+                        prefetch={false}
                         className="text-lg text-foreground hover:text-orange-500 hover:bg-orange-500/10 transition-colors border-b border-border px-4 py-4"
                         onClick={() => setMobileOpen(false)}
                       >

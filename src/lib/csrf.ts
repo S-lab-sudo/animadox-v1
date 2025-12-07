@@ -11,8 +11,17 @@ import { NextRequest, NextResponse } from 'next/server';
 const ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://localhost:8000',
+    'https://animadox-v1.vercel.app',
     process.env.NEXT_PUBLIC_APP_URL,
 ].filter(Boolean) as string[];
+
+/**
+ * Check if origin is a Vercel preview deployment
+ * This allows *.vercel.app subdomains for preview URLs
+ */
+function isVercelPreview(origin: string): boolean {
+    return /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
+}
 
 /**
  * Validates the origin of a request for CSRF protection
@@ -53,8 +62,8 @@ export function validateOrigin(request: NextRequest): NextResponse | null {
         return null;
     }
 
-    // Check if origin is in allowed list
-    const isAllowed = ALLOWED_ORIGINS.includes(origin);
+    // Check if origin is in allowed list or is a Vercel preview deployment
+    const isAllowed = ALLOWED_ORIGINS.includes(origin) || isVercelPreview(origin);
 
     if (!isAllowed && process.env.NODE_ENV === 'production') {
         return NextResponse.json(
