@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useParams } from 'next/navigation';
 import { Content } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -40,14 +41,16 @@ interface ReadingProgressData {
   lastReadAt: string;
 }
 
-export default function ContentDetailPage({ params }: { params: { id: string } }) {
+export default function ContentDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+  
   const { toast } = useToast();
   const [content, setContent] = useState<Content | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [chapterSearchQuery, setChapterSearchQuery] = useState('');
   const [chapterSearchTimeout, setChapterSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [id, setId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -71,15 +74,6 @@ export default function ContentDetailPage({ params }: { params: { id: string } }
     const token = getOrCreateSessionToken();
     setSessionToken(token);
   }, []);
-
-  // Extract params properly for client components
-  useEffect(() => {
-    // In Next.js 15+ client components, params is provided as a sync object
-    // The Promise.resolve pattern causes extra renders
-    if (params && typeof params === 'object' && 'id' in params) {
-      setId(params.id as string);
-    }
-  }, [params]);
 
   // Get context for client-side caching
   const { getContentDetail, setContentDetail } = useContentContext();
