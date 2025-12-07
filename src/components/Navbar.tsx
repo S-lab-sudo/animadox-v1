@@ -24,7 +24,7 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [showDesktopSearch, setShowDesktopSearch] = useState(false);
-  const desktopSearchRef = useRef<HTMLDivElement>(null);
+  const desktopSearchRef = useRef<HTMLFormElement>(null);
 
   const { 
     query: searchQuery2, 
