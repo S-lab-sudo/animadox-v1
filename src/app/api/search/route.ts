@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const searchTerm = queryValidation.data.query; // Already trimmed and lowercased by schema
+        const searchTerm = queryValidation.data.q; // Already trimmed and lowercased by schema
 
         if (process.env.NODE_ENV === 'development') {
             console.log(`\n📊 [API /search] Query: "${searchTerm}"`);

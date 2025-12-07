@@ -37,7 +37,7 @@ export const ContentIdParamSchema = z.object({
 // ============ Search Schemas ============
 
 export const SearchQuerySchema = z.object({
-    query: z.string()
+    q: z.string()
         .min(1, 'Search query cannot be empty')
         .max(100, 'Search query too long')
         .transform(val => val.trim().toLowerCase()),

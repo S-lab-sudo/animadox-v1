@@ -38,7 +38,8 @@ export const useSearch = () => {
         }
 
         // Use serverless API route
-        const url = `/api/search?query=${encodeURIComponent(searchQuery)}`;
+        // Use serverless API route
+        const url = `/api/search?q=${encodeURIComponent(searchQuery)}`;
 
         console.log('Searching:', { url, token: token?.substring(0, 10) });
 

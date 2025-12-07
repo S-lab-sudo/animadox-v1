@@ -41,10 +41,11 @@ export const SearchResultsPopup = ({ results, loading, error, query }: SearchRes
       {/* Results State */}
       {!loading && !error && results.length > 0 && (
         <div className="divide-y divide-border">
-          {results.map((result) => (
+          {results.slice(0, 3).map((result) => (
             <Link
               key={result.id}
               href={`/content/${result.id}`}
+              prefetch={false}
               className="flex gap-3 p-3 md:p-4 hover:bg-orange-500/10 transition-colors block"
             >
               {/* Image */}
@@ -90,6 +91,14 @@ export const SearchResultsPopup = ({ results, loading, error, query }: SearchRes
               </div>
             </Link>
           ))}
+          {results.length > 3 && (
+            <Link 
+              href={`/search?q=${encodeURIComponent(query)}`}
+              className="block p-3 text-center text-sm font-medium text-orange-500 hover:text-orange-400 hover:bg-orange-500/10 transition-colors"
+            >
+              Show more results
+            </Link>
+          )}
         </div>
       )}
 

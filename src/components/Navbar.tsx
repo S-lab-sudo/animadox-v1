@@ -1,5 +1,8 @@
+'use client';
+
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Menu, X } from 'lucide-react';
@@ -15,6 +18,8 @@ interface NavbarProps {
 }
 
 export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: NavbarProps) => {
+  const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +56,19 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
     }
   }, [showDesktopSearch, clearSearch]);
 
+  // Handle search submit
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery2.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery2.trim())}`);
+      setShowDesktopSearch(false);
+      setMobileSearchOpen(false);
+      clearSearch();
+    }
+  };
+
+  const isActive = (path: string) => pathname === path;
+
   if (mobileSearchOpen) {
     return (
       <nav className={`sticky top-0 z-50 bg-black backdrop-blur-sm transition-all duration-300 flex flex-col ${
@@ -59,17 +77,16 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
         <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-2">
             {/* Search Input - Full Width */}
-            <div className="flex-1 relative" ref={desktopSearchRef}>
+            <form onSubmit={handleSearchSubmit} className="flex-1 relative" ref={desktopSearchRef}>
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <input
                   ref={searchInputRef}
                   type="text"
                   placeholder="Search..."
                   value={searchQuery2}
                   onChange={(e) => handleSearch2(e.target.value)}
-                  className="pl-10 pr-4 bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all w-full"
-                  suppressHydrationWarning
+                  className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md focus:outline-none focus:border-orange-500 transition-all text-foreground placeholder:text-muted-foreground"
                 />
               </div>
               {/* Mobile Search Results Popup */}
@@ -81,7 +98,7 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                   query={searchQuery2}
                 />
               )}
-            </div>
+            </form>
             {/* Close Button */}
             <Button 
               variant="ghost" 
@@ -113,22 +130,35 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-2">
-            <Link href="/browse" prefetch={false} className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
+            <Link 
+              href="/browse" 
+              prefetch={false} 
+              className={`px-4 py-2 transition-all duration-300 rounded cursor-pointer ${
+                isActive('/browse')
+                  ? 'bg-orange-500 text-white border border-orange-500 shadow-lg shadow-orange-500/30'
+                  : 'text-foreground hover:text-orange-500 border border-border hover:border-orange-500'
+              }`}
+            >
               Browse
             </Link>
-            <Link href="/updates" prefetch={false} className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
+            <Link 
+              href="/updates" 
+              prefetch={false} 
+              className={`px-4 py-2 transition-all duration-300 rounded cursor-pointer ${
+                isActive('/updates')
+                  ? 'bg-orange-500 text-white border border-orange-500 shadow-lg shadow-orange-500/30'
+                  : 'text-foreground hover:text-orange-500 border border-border hover:border-orange-500'
+              }`}
+            >
               Updates
-            </Link>
-            <Link href="/library" prefetch={false} className="px-4 py-2 text-foreground hover:text-orange-500 transition-colors border border-border rounded hover:border-orange-500 cursor-pointer">
-              Library
             </Link>
           </div>
 
           {/* Desktop Search */}
-          <div className="hidden md:flex items-center gap-4 flex-1 max-w-md mx-8 relative" ref={desktopSearchRef}>
+          <form onSubmit={handleSearchSubmit} className="hidden md:flex items-center gap-4 flex-1 max-w-md mx-8 relative" ref={desktopSearchRef}>
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
+              <input
                 type="text"
                 placeholder="Search..."
                 value={searchQuery2}
@@ -137,8 +167,7 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                   setShowDesktopSearch(true);
                 }}
                 onFocus={() => setShowDesktopSearch(true)}
-                className="pl-10 bg-background focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-                suppressHydrationWarning
+                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-md focus:outline-none focus:border-orange-500 transition-all text-foreground placeholder:text-muted-foreground"
               />
               {showDesktopSearch && (
                 <SearchResultsPopup
@@ -149,7 +178,7 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                 />
               )}
             </div>
-          </div>
+          </form>
 
           {/* Desktop Login */}
           <div className="hidden md:block">
@@ -178,7 +207,7 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                   <VisuallyHidden>Navigation Menu</VisuallyHidden>
                 </SheetTitle>
                 
-                {/* Outer container with space-around */}
+                {/* Outer container */}
                 <div className="flex flex-col h-full bg-black p-6 space-y-8">
                   
                   {/* First Section: Close button + Menu items */}
@@ -200,7 +229,11 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                       <Link 
                         href="/browse" 
                         prefetch={false}
-                        className="text-lg text-foreground hover:text-orange-500 hover:bg-orange-500/10 transition-colors border-b border-border px-4 py-4"
+                        className={`text-lg transition-colors border-b border-border px-4 py-4 ${
+                          isActive('/browse')
+                            ? 'bg-orange-500/20 text-orange-500'
+                            : 'text-foreground hover:text-orange-500 hover:bg-orange-500/10'
+                        }`}
                         onClick={() => setMobileOpen(false)}
                       >
                         Browse
@@ -208,18 +241,14 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                       <Link 
                         href="/updates" 
                         prefetch={false}
-                        className="text-lg text-foreground hover:text-orange-500 hover:bg-orange-500/10 transition-colors border-b border-border px-4 py-4"
+                        className={`text-lg transition-colors border-b border-border px-4 py-4 ${
+                          isActive('/updates')
+                            ? 'bg-orange-500/20 text-orange-500'
+                            : 'text-foreground hover:text-orange-500 hover:bg-orange-500/10'
+                        }`}
                         onClick={() => setMobileOpen(false)}
                       >
                         Updates
-                      </Link>
-                      <Link 
-                        href="/library" 
-                        prefetch={false}
-                        className="text-lg text-foreground hover:text-orange-500 hover:bg-orange-500/10 transition-colors border-b border-border px-4 py-4"
-                        onClick={() => setMobileOpen(false)}
-                      >
-                        Library
                       </Link>
                     </div>
                   </div>
