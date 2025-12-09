@@ -317,36 +317,45 @@ export default function ReaderPage() {
 
   // --- AD COMPLETION HELPERS ---
   const SocialBarAd = () => {
+    // Generate a stable ID for this component instance
+    const adContainerId = useRef(`ad-container-${Math.random().toString(36).substr(2, 9)}`).current;
+
     useEffect(() => {
-      // Social Bar Script: //pl28217897.effectivegatecpm.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js
+      // Social Bar Script
       const script = document.createElement('script');
       script.type = 'text/javascript';
       script.src = '//pl28217897.effectivegatecpm.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js';
       script.async = true;
       
-      const id = `ad-container-${Math.random().toString(36).substr(2, 9)}`;
-      const container = document.getElementById(id);
+      const container = document.getElementById(adContainerId);
       
       if (container) {
           container.appendChild(script);
       } else {
+         // Fallback usually shouldn't happen if mounted, but okay
+         console.warn("Ad container not found, appending to body");
          document.body.appendChild(script);
       }
       
       return () => {
           if (container && container.contains(script)) {
-              container.removeChild(script);
+              try {
+                container.removeChild(script);
+              } catch (e) {
+                // Ignore removal errors
+              }
           } else if (document.body && document.body.contains(script)){
-             document.body.removeChild(script);
+             try {
+                document.body.removeChild(script);
+             } catch (e) {
+                // Ignore
+             }
           }
       };
-    }, []);
-
-    // Unique ID for this specific render instance to attach script locally if possible
-    const id = `ad-container-${Math.random().toString(36).substr(2, 9)}`;
+    }, []); // Empty dependency array is fine since adContainerId is stable
 
     return (
-      <div id={id} className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
+      <div id={adContainerId} className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
           <div className="text-xs text-muted-foreground/30 uppercase tracking-widest text-center w-full">
             Advertisement
           </div>
