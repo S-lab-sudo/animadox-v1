@@ -10,9 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Star, BookOpen, ChevronRight, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Star, BookOpen, ChevronRight, RotateCcw, Bell, BellRing } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { registerServiceWorker, subscribeToPush } from '@/lib/push';
+import { supabase } from '@/lib/supabase';
 import { useContentContext } from '@/context/ContentContext';
 import {
   getOrCreateSessionToken,
@@ -55,12 +59,125 @@ export default function ContentDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [showAllGenres, setShowAllGenres] = useState(false);
-  const [requestVariant, setRequestVariant] = useState('');
+
   
   // User tracking states
   const [sessionToken, setSessionToken] = useState<string>('');
   const [readingProgress, setReadingProgress] = useState<ReadingProgressData | null>(null);
   const [visitedChapters, setVisitedChapters] = useState<Set<string>>(new Set());
+  
+  // Notification states
+  const { user } = useAuth();
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subLoading, setSubLoading] = useState(false);
+  const lastSubCheck = useRef<number>(0);
+  const SUB_CHECK_TTL = 30000; // 30 seconds
+
+  // Check subscription status (throttled)
+  useEffect(() => {
+    if (user && id) {
+      const now = Date.now();
+      // Skip if checked within TTL
+      if (now - lastSubCheck.current < SUB_CHECK_TTL) {
+        console.log('[ContentPage] Subscription check throttled');
+        return;
+      }
+      lastSubCheck.current = now;
+
+      const checkSub = async () => {
+        const { data } = await supabase
+          .from('content_subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('content_id', id)
+          .maybeSingle();
+        setIsSubscribed(!!data);
+      };
+      checkSub();
+    }
+  }, [user, id]);
+
+  const handleNotifyToggle = async () => {
+    if (!user) {
+      toast({ title: "Login Required", description: "You must be logged in to receive notifications.", variant: "destructive" });
+      return;
+    }
+
+    setSubLoading(true);
+    try {
+      if (isSubscribed) {
+        // Unsubscribe
+        const { error } = await supabase
+          .from('content_subscriptions')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('content_id', id);
+        
+        if (error) throw error;
+        setIsSubscribed(false);
+        toast({ title: "Unsubscribed", description: "You will no longer receive updates for this content." });
+      } else {
+        // Subscribe
+        // 1. Ensure SW is ready
+        await registerServiceWorker();
+        // 2. Request Permission
+        const permission = await Notification.requestPermission();
+        if (permission === 'denied') {
+          toast({ title: "Permission Denied", description: "Please enable notifications in your browser settings.", variant: "destructive" });
+          setSubLoading(false);
+          return;
+        }
+        
+        // 3. Save subscription to DB
+        // Note: content_subscriptions has FK to users table which is for admins/editors only
+        // If you get a 23503 error, the FK constraint needs to be removed via migration
+        const { error } = await supabase
+          .from('content_subscriptions')
+          .insert({ user_id: user.id, content_id: id });
+
+        if (error) {
+          // Handle specific error cases
+          if (error.code === '23505' || error.message?.includes('duplicate')) {
+            // Already subscribed - this is fine
+            console.log('Subscription already exists, continuing...');
+          } else if (error.code === '23503') {
+            // Foreign key error - database constraint issue
+            console.error('Foreign key constraint error:', error);
+            toast({ 
+              title: "Database Configuration Issue", 
+              description: "Subscriptions feature requires a database migration. Please contact admin.",
+              variant: "destructive" 
+            });
+            setSubLoading(false);
+            return;
+          } else {
+            throw error;
+          }
+        }
+        
+        // 5. Actually subscribe to push
+        try {
+          await subscribeToPush();
+          toast({ title: "Subscribed!", description: "You will be notified when new chapters are released." });
+        } catch (pushError) {
+          console.error("Push subscription failed:", pushError);
+          toast({ 
+            title: "Subscribed (Site Only)", 
+            description: "Push notifications failed (browser blocked?), but you'll still see red badge updates here.",
+            variant: "default"
+          });
+        }
+
+        setIsSubscribed(true);
+      }
+    } catch (err: unknown) {
+      console.error(err);
+      const errorMessage = err instanceof Error ? err.message : "Failed to update subscription.";
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+    } finally {
+      setSubLoading(false);
+    }
+  };
 
   // Use useMemo to create API URL - serverless API routes
   const API_BASE_URL = useMemo(() => {
@@ -85,27 +202,26 @@ export default function ContentDetailPage() {
       }
 
       try {
-        // Check client-side cache first (instant!)
+        // Show cached data immediately for instant UX (if available)
         const cached = getContentDetail(id);
         if (cached) {
-          console.log('⚡ [ContentPage] Using client-side cached data!');
+          console.log('⚡ [ContentPage] Showing cached data while fetching fresh...');
           setContent(cached.content);
           setChapters(cached.chapters);
+          setLoading(false);
           
           // Load reading progress from localStorage
           const progress = getReadingProgress(id);
           setReadingProgress(progress);
           const visited = getVisitedChaptersForContent(id);
           setVisitedChapters(visited);
-          
-          setLoading(false);
-          return;
+        } else {
+          setLoading(true);
         }
 
-        setLoading(true);
         setError(null);
 
-        // Fetch content and chapters in PARALLEL for faster loading
+        // ALWAYS fetch fresh data from API (even if we showed cache)
         const [contentResponse, chaptersResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/content/${id}`),
           fetch(`${API_BASE_URL}/chapters/${id}`)
@@ -137,9 +253,10 @@ export default function ContentDetailPage() {
           setChapters([]);
         }
 
-        // Cache in Context for instant load on next visit
+        // Update cache with fresh data
         if (fetchedContent) {
           setContentDetail(id, fetchedContent, fetchedChapters);
+          console.log('✅ [ContentPage] Cache updated with fresh data');
         }
         
       } catch (err: unknown) {
@@ -311,7 +428,7 @@ export default function ContentDetailPage() {
       {/* Header with Back Button and Start Reading */}
       <div className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 overflow-x-auto no-scrollbar scroll-smooth">
             <Link href="/">
               <Button className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg h-8 sm:h-9 px-3 cursor-pointer transition-all duration-300 flex items-center gap-2">
                 <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -335,6 +452,23 @@ export default function ContentDetailPage() {
                 </Button>
               </Link>
             ) : null}
+            
+            {/* Notify Me Button */}
+             <Button 
+               onClick={handleNotifyToggle} 
+               disabled={subLoading}
+               variant="outline" 
+               className={`rounded-lg h-8 sm:h-9 px-3 cursor-pointer transition-all duration-300 flex items-center gap-2 border-orange-500 ${isSubscribed ? 'bg-orange-500/10 text-orange-500' : 'text-foreground hover:bg-orange-500/10 hover:text-orange-500'}`}
+             >
+               {subLoading ? (
+                 <div className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+               ) : isSubscribed ? (
+                 <BellRing className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+               ) : (
+                 <Bell className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+               )}
+               <span className="text-xs sm:text-sm font-medium">{isSubscribed ? 'Subscribed' : 'Notify Me'}</span>
+             </Button>
           </div>
         </div>
       </div>
@@ -552,7 +686,7 @@ export default function ContentDetailPage() {
 
             {/* Chapters List */}
             {filteredChapters.length > 0 ? (
-              <div className="space-y-2 max-h-80 sm:max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-2 max-h-80 sm:max-h-96 overflow-y-auto pr-2 custom-scrollbar flex flex-col">
                 {[...filteredChapters].reverse().map((chapter) => (
                   <Link 
                     key={chapter.id} 
@@ -572,7 +706,7 @@ export default function ContentDetailPage() {
                         <p className={`font-medium text-xs sm:text-sm truncate group-hover:text-orange-500 transition-colors ${
                           isChapterVisited(id, chapter.id) ? 'text-orange-500' : 'text-foreground'
                         }`}>
-                          Ch. {chapter.number}{chapter.title ? ` - ${chapter.title}` : ''}
+                          Chapter {chapter.number}{chapter.title ? ` - ${chapter.title}` : ''}
                         </p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-orange-500/60 flex-shrink-0 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -601,92 +735,7 @@ export default function ContentDetailPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border mt-6 bg-card">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="mb-6">
-            <div className="text-center mb-4">
-              <h4 className="text-base md:text-xl font-semibold text-foreground inline-block mr-2">
-                Request Content
-              </h4>
-              <span className="text-xs md:text-sm text-muted-foreground">
-                (Get what you want within 1 hour of request)
-              </span>
-            </div>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const title = formData.get('title') as string;
-              const email = formData.get('email') as string;
-              
-              if (!title || !requestVariant) {
-                toast({
-                  title: "Missing Information",
-                  description: "Please fill in all required fields",
-                  variant: "destructive",
-                });
-                return;
-              }
-              
-              toast({
-                title: "Request Submitted",
-                description: `Your request for "${title}" has been submitted!`,
-              });
-              
-              e.currentTarget.reset();
-              setRequestVariant('');
-            }} className="space-y-3">
-              <div className="flex flex-col md:flex-row gap-3">
-                <div className="flex-1">
-                  <Input
-                    id="title"
-                    name="title"
-                    type="text"
-                    placeholder="Enter content title..."
-                    className="h-9 text-sm md:text-base focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all px-3"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="flex-1">
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="Enter your email..."
-                    className="h-9 text-sm md:text-base focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500 transition-all px-3"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="flex-1">
-                  <Select value={requestVariant} onValueChange={setRequestVariant}>
-                    <SelectTrigger className="h-9 text-sm md:text-base cursor-pointer bg-background border-input text-foreground">
-                      <SelectValue placeholder="Select variant..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="manga">Manga</SelectItem>
-                      <SelectItem value="manhwa">Manhwa</SelectItem>
-                      <SelectItem value="manhua">Manhua</SelectItem>
-                      <SelectItem value="anime">Anime</SelectItem>
-                      <SelectItem value="novel">Novel</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <Button type="submit" className="w-full h-9 cursor-pointer bg-orange-500 hover:bg-orange-600 text-white text-sm md:text-base font-medium" size="lg">
-                Submit Request
-              </Button>
-            </form>
-          </div>
-          
-          <div className="text-center mb-6">
-            <h3 className="text-lg md:text-2xl font-bold text-foreground mb-2">
-              <span className="text-white">Ani</span><span className="text-orange-500">Ma</span><span className="text-white">Dox</span>
-            </h3>
-            <p className="text-muted-foreground text-[10px] md:text-sm">
-              Discover • Read • Enjoy
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       <style jsx>{`
         .custom-scrollbar::-webkit-scrollbar {

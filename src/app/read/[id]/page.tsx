@@ -74,7 +74,9 @@ export default function ReaderPage() {
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [zoom, setZoom] = useState(100);
+
   const [contentTitle, setContentTitle] = useState<string>('');
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Load zoom from local storage
   useEffect(() => {
@@ -313,117 +315,177 @@ export default function ReaderPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
+  // --- AD COMPLETION HELPERS ---
+  const SocialBarAd = () => {
+    useEffect(() => {
+      // Social Bar Script: //pl28217897.effectivegatecpm.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = '//pl28217897.effectivegatecpm.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js';
+      script.async = true;
+      
+      const id = `ad-container-${Math.random().toString(36).substr(2, 9)}`;
+      const container = document.getElementById(id);
+      
+      if (container) {
+          container.appendChild(script);
+      } else {
+         document.body.appendChild(script);
+      }
+      
+      return () => {
+          if (container && container.contains(script)) {
+              container.removeChild(script);
+          } else if (document.body && document.body.contains(script)){
+             document.body.removeChild(script);
+          }
+      };
+    }, []);
+
+    // Unique ID for this specific render instance to attach script locally if possible
+    const id = `ad-container-${Math.random().toString(36).substr(2, 9)}`;
+
+    return (
+      <div id={id} className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
+          <div className="text-xs text-muted-foreground/30 uppercase tracking-widest text-center w-full">
+            Advertisement
+          </div>
+      </div>
+    );
+  };
+
+  const TriggerPopunder = () => {
+      // Popunder script: //pl28217868.effectivegatecpm.com/d5/4f/43/d54f43018bcdb3176b98c24874ce240a.js
+      if (typeof document === 'undefined') return;
+      
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = '//pl28217868.effectivegatecpm.com/d5/4f/43/d54f43018bcdb3176b98c24874ce240a.js';
+      document.body.appendChild(script);
+  };
+
   // Handle chapter navigation without scroll
   const handleReadNextChapterNoScroll = useCallback(async () => {
     try {
+      TriggerPopunder(); // Trigger popunder on read click
       const nextIdx = currentChapterIndex + 1;
       
-      // Check if next chapter exists
+      // Check if next chapter exists in current list
       if (nextIdx >= activeChapters.length) {
-        console.log('⚠️ [Reader] No more chapters available');
+        console.log('⚠️ [Reader] No more chapters available in current list');
         return;
       }
 
       console.log(`➡️ [Reader] Moving to chapter index ${nextIdx}`);
       
-        // Removed immediate tracking here.
-        // Tracking is deferred until 25% of images load.
-      
-      // Update current chapter index first
-      setCurrentChapterIndex(nextIdx);
-      
-      // Unlock the chapter and cleanup old DOM if needed
-      setActiveChapters((prev) => {
-        let updated = [...prev];
-        
-        if (updated[nextIdx]) {
-          console.log(`🔓 [Reader] Unlocking chapter: ${updated[nextIdx].chapter.title || updated[nextIdx].chapter.number}`);
-          updated[nextIdx].isLocked = false;
-        }
+      // --- SLIDING WINDOW LOGIC ---
+      // Trigger: When navigating to the SECOND TO LAST chapter of the current list.
+      // Example: List [1,2,3,4,5]. Len 5. Target is 4 (Index 3).
+      // 3 === 5 - 2. Trigger!
+      const isTriggerPoint = nextIdx === activeChapters.length - 2;
 
-        // DOM Cleanup: Remove old chapters to prevent DOM bloat
-        // When reaching chapter 5 (index 4), remove chapters 0-4 (indices 0-4)
-        // When reaching chapter 10 (index 9), remove chapters 5-9 (indices 5-9)
-        // Pattern: Remove 5 chapters at a time in batches
-        if (nextIdx >= 4) {
-          const chapterBatch = Math.floor(nextIdx / 5);
-          const deleteUpToIdx = chapterBatch * 5;
-          
-          if (deleteUpToIdx > 0 && deleteUpToIdx < nextIdx) {
-            console.log(`🗑️ [Reader] Cleaning up old chapters (removing up to index ${deleteUpToIdx})`);
-            updated = updated.slice(deleteUpToIdx);
-            
-            // Adjust currentChapterIndex and recalculate startIndex
-            const adjustment = deleteUpToIdx;
-            let newStartIndex = 0;
-            
-            updated = updated.map((chapter, idx) => {
-              const newChapter = { ...chapter, startIndex: newStartIndex };
-              newStartIndex += (chapter.pages?.length || 0);
-              return newChapter;
-            });
+      if (isTriggerPoint) {
+        console.log('⚡ [Reader] Trigger point reached (Second to Last Chapter). Initiating Sliding Window...');
+
+        // 1. Identify chapters to KEEP (Target and Target+1)
+        // In [1,2,3,4,5], target is 4. Keep 4 and 5.
+        // Slice from nextIdx.
+        let keptChapters = activeChapters.slice(nextIdx); // [4, 5]
+        
+        // 2. Recalculate startIndices for kept chapters (Resetting to 0)
+        let newStartIndex = 0;
+        keptChapters = keptChapters.map((ch, idx) => {
+          const updated = { ...ch, startIndex: newStartIndex };
+          // IMPORTANT: Unlock the first chapter of the new list, as it's the one we just clicked 'Read' on.
+          if (idx === 0) {
+            updated.isLocked = false;
           }
-        }
-        
-        return updated;
-      });
+          newStartIndex += (ch.pages?.length || 0);
+          return updated;
+        });
 
-      // Preload next chapters dynamically (always keep 4 chapters ahead loaded for smooth experience)
-      // Find current chapter in all chapters
-      const currentActiveChapter = activeChapters[nextIdx];
-      if (!currentActiveChapter) return;
-      
-      const currentChapterInAll = allChaptersRef.current.findIndex(
-        (ch) => ch.id === currentActiveChapter.chapter.id
-      );
-      
-      if (currentChapterInAll !== -1) {
-        const chaptersToLoad = [];
+        // 3. Immediately update State to "Snap" to the new view
+        // The user is effectively at index 0 of the new list [4, 5]
+        setActiveChapters(keptChapters);
+        setCurrentChapterIndex(0);
         
-        // Load next 4 chapters if they don't exist in activeChapters
-        for (let i = 1; i <= 4; i++) {
-          const nextChapterIdx = currentChapterInAll + i;
-          if (nextChapterIdx < allChaptersRef.current.length) {
-            const chapterExists = activeChapters.some(
-              ac => ac.chapter.id === allChaptersRef.current[nextChapterIdx].id
-            );
-            
-            if (!chapterExists) {
-              chaptersToLoad.push(allChaptersRef.current[nextChapterIdx]);
+        // 4. Update Waterfall Index
+        // We assume the kept chapters are valid/loaded. 
+        // We set maxAllowedIndex to the end of the kept chapters so they show immediately
+        // and the waterfall is primed for the NEW chapters to load sequentially after them.
+        const totalKeptPages = newStartIndex; // This is the sum of pages in kept chapters
+        setMaxAllowedIndex(totalKeptPages);
+
+        console.log(`♻️ [Reader] Window slided. New List Size: ${keptChapters.length}. Current Ch: ${keptChapters[0].chapter.number}`);
+        
+        // Scroll to top to prevent disorientation
+        window.scrollTo({ top: 0, behavior: 'auto' });
+
+
+        // Identify the last chapter we currently have
+        const lastKeptChapter = keptChapters[keptChapters.length - 1];
+        const lastKeptChapterIndexInAll = allChaptersRef.current.findIndex(c => c.id === lastKeptChapter.chapter.id);
+
+        if (lastKeptChapterIndexInAll !== -1) {
+          const chaptersToLoad = [];
+          for (let i = 1; i <= 5; i++) {
+            const candidateIdx = lastKeptChapterIndexInAll + i;
+            if (candidateIdx < allChaptersRef.current.length) {
+              chaptersToLoad.push(allChaptersRef.current[candidateIdx]);
             }
           }
-        }
-        
-        // Load chapters in parallel
-        if (chaptersToLoad.length > 0) {
-          console.log(`📚 [Reader] Preloading ${chaptersToLoad.length} upcoming chapters`);
-          
-          const newChaptersData = await Promise.all(
-            chaptersToLoad.map(async (chapter) => {
-              const pages = await fetchChapterPages(chapter.id);
-              return { chapter, pages: pages || [] };
-            })
-          );
-          
-          setActiveChapters((prev) => {
-            const lastChapter = prev[prev.length - 1];
-            let currentStartIndex = lastChapter.startIndex + (lastChapter.pages?.length || 0);
-            
-            const newActiveChapters = newChaptersData.map(data => {
-              const chapter: ActiveChapter = {
-                chapter: data.chapter,
-                pages: data.pages,
-                isLocked: true,
-                startIndex: currentStartIndex
-              };
-              currentStartIndex += (data.pages?.length || 0);
-              return chapter;
-            });
 
-            return [...prev, ...newActiveChapters];
-          });
+          if (chaptersToLoad.length > 0) {
+            console.log(`📚 [Reader] Fetching next batch of ${chaptersToLoad.length} chapters...`);
+            setIsLoadingMore(true);
+            
+            // Fetch in parallel
+            const newChaptersData = await Promise.all(
+               chaptersToLoad.map(async (chapter) => {
+                 const pages = await fetchChapterPages(chapter.id);
+                 return { chapter, pages: pages || [] };
+               })
+            );
+
+            // Append to the list
+            setActiveChapters(prev => {
+               // Need to append to the LATEST prev (which is the keptChapters we just set, technically)
+               // But inside this callback, 'prev' is the current state.
+               // We need to calculate startIndices for the new batch continuing from the active list
+               const lastActive = prev[prev.length - 1];
+               let batchStartIndex = lastActive.startIndex + (lastActive.pages?.length || 0);
+               
+               const newActiveChapters = newChaptersData.map(data => {
+                  const ch: ActiveChapter = {
+                      chapter: data.chapter,
+                      pages: data.pages,
+                      isLocked: true, 
+                      startIndex: batchStartIndex
+                  };
+                  batchStartIndex += (data.pages?.length || 0);
+                  return ch;
+               });
+
+               return [...prev, ...newActiveChapters];
+            });
+            setIsLoadingMore(false);
+          }
         }
+      } else {
+        // --- STANDARD NAVIGATION ---
+        // Not at trigger point yet, just changing index.
+        setCurrentChapterIndex(nextIdx);
+        
+        // Unlock if needed
+        setActiveChapters(prev => {
+          const updated = [...prev];
+          if (updated[nextIdx]) {
+            updated[nextIdx].isLocked = false;
+          }
+          return updated;
+        });
       }
+
     } catch (err: any) {
       console.error('❌ [Reader] Error moving to next chapter:', err);
       toast({
@@ -639,6 +701,15 @@ export default function ReaderPage() {
         }}
       >
         {activeChapters.map((activeChapter, chapterIdx) => {
+          // Calculate Ad positions for this chapter (approx 25%, 50%, 75%)
+          const totalPages = activeChapter.pages?.length || 0;
+          const adPositions = new Set<number>();
+          if (totalPages > 5) { // Only show interstitial ads if chapter is long enough
+              adPositions.add(Math.floor(totalPages * 0.25));
+              adPositions.add(Math.floor(totalPages * 0.50));
+              adPositions.add(Math.floor(totalPages * 0.75));
+          }
+
           return (
           <div key={activeChapter.chapter.id} className="mb-2" data-chapter-id={activeChapter.chapter.id}>
             {/* Chapter Header */}
@@ -684,48 +755,51 @@ export default function ReaderPage() {
                   try {
                     const globalIndex = activeChapter.startIndex + pageIdx;
                     
-                    // Sequential Waterfall Logic:
-                    // Only render/fetch if previous images have finished loading
-                    // AND if the chapter is unlocked
-                    const shouldRender = !activeChapter.isLocked && globalIndex <= maxAllowedIndex;
-                    const isCurrentLoading = globalIndex === maxAllowedIndex;
+                    // Aggressive Preloading Logic:
+                    // Always render/fetch images regardless of previous load state.
+                    // If locked, we hide them (display: none) but keep them in DOM to trigger fetch.
+                    const shouldRender = true; 
+                    const isLocked = activeChapter.isLocked;
                     
                     return (
-                      <div
-                        key={page.id}
-                        className="relative bg-muted overflow-hidden mb-0"
-                      >
-                        {shouldRender && page.image_url ? (
-                          <img
-                            src={page.image_url}
-                            alt={`Page ${page.page_number}`}
-                            className={`w-full h-auto transition-opacity duration-500 ${isCurrentLoading ? 'opacity-0' : 'opacity-100'}`}
-                            onLoad={(e) => {
-                              e.currentTarget.classList.remove('opacity-0');
-                              handleImageLoad(globalIndex);
-                            }}
-                            onError={() => {
-                              toast({
-                                title: 'Image Load Error',
-                                description: `Failed to load page ${page.page_number}`,
-                                variant: 'destructive',
-                              });
-                              // Still increment to continue loading next images
-                              handleImageLoad(globalIndex);
-                            }}
-                          />
-                        ) : (
-                          <div className="aspect-[2/3] bg-card flex items-center justify-center border border-border rounded-lg">
-                            <div className="text-center space-y-2">
-                              <div className="animate-pulse">
-                                <div className="w-8 h-8 bg-muted rounded-full mx-auto mb-2"></div>
+                      <div key={page.id} className="flex flex-col">
+                        <div
+                          className={`relative bg-muted overflow-hidden mb-0 ${isLocked ? 'hidden' : ''}`}
+                        >
+                          {shouldRender && page.image_url ? (
+                            <img
+                              src={page.image_url}
+                              alt={`Page ${page.page_number}`}
+                              className="w-full h-auto transition-opacity duration-500 opacity-0"
+                              onLoad={(e) => {
+                                e.currentTarget.classList.remove('opacity-0');
+                                handleImageLoad(globalIndex);
+                              }}
+                              onError={() => {
+                                toast({
+                                  title: 'Image Load Error',
+                                  description: `Failed to load page ${page.page_number}`,
+                                  variant: 'destructive',
+                                });
+                                // Still increment to continue loading next images
+                                handleImageLoad(globalIndex);
+                              }}
+                            />
+                          ) : (
+                            <div className="aspect-[2/3] bg-card flex items-center justify-center border border-border rounded-lg">
+                              <div className="text-center space-y-2">
+                                <div className="animate-pulse">
+                                  <div className="w-8 h-8 bg-muted rounded-full mx-auto mb-2"></div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {activeChapter.isLocked ? 'Locked' : 'Loading...'}
+                                </p>
                               </div>
-                              <p className="text-xs text-muted-foreground">
-                                {activeChapter.isLocked ? 'Locked' : 'Loading...'}
-                              </p>
                             </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
+                        {/* Dynamic Ad Insertion */}
+                        {!isLocked && adPositions.has(pageIdx) && <SocialBarAd />}
                       </div>
                     );
                   } catch (err) {
@@ -744,19 +818,7 @@ export default function ReaderPage() {
               )}
             </div>
 
-            {/* Advertisement between chapters */}
-            {chapterIdx < activeChapters.length - 1 && (
-              <div className="my-4 py-4 border-y border-border">
-                <div className="bg-card border border-border rounded-lg p-8 text-center">
-                  <div className="text-xs text-muted-foreground mb-4 uppercase tracking-wide">
-                    Advertisement
-                  </div>
-                  <div className="bg-muted rounded aspect-video flex items-center justify-center">
-                    <p className="text-muted-foreground">Ad Space</p>
-                  </div>
-                </div>
-              </div>
-            )}
+
 
             {/* Next Chapter Button - only show at end of chapter */}
             {chapterIdx === currentChapterIndex && (
@@ -770,13 +832,27 @@ export default function ReaderPage() {
 
         {/* End of content */}
         <div className="mt-12 py-8 text-center border-t border-border">
-          <p className="text-muted-foreground mb-4">You've reached the end of available chapters</p>
-          <Link href={`/content/${contentId}`}>
-            <Button variant="outline" className="gap-2 cursor-pointer">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Content
-            </Button>
-          </Link>
+          {isLoadingMore ? (
+             <div className="flex flex-col items-center justify-center gap-4">
+                <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-muted-foreground animate-pulse">Loading next chapters...</p>
+             </div>
+          ) : (
+            <>
+              {activeChapters.length > 0 && allChaptersRef.current.length > 0 && 
+               activeChapters[activeChapters.length - 1].chapter.id === allChaptersRef.current[allChaptersRef.current.length - 1].id ? (
+                 <p className="text-muted-foreground mb-4">You've reached the end of available chapters</p>
+               ) : (
+                 <p className="text-muted-foreground mb-4 opacity-0">...</p> 
+               )}
+              <Link href={`/content/${contentId}`}>
+                <Button variant="outline" className="gap-2 cursor-pointer">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Content
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

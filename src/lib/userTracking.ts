@@ -77,6 +77,7 @@ async function syncSessionTokenToDatabase(token: string) {
 }
 
 // Save reading progress for a content item
+// Save reading progress for a content item
 export function saveReadingProgress(
   contentId: string,
   chapterId: string,
@@ -88,16 +89,32 @@ export function saveReadingProgress(
   }
 
   const sessionToken = getOrCreateSessionToken();
+  const progressMap = getReadingProgressMap();
+  const existingProgress = progressMap[contentId];
+
+  // Logic: Only update 'last read' pointer if we are moving FORWARD (higher chapter number)
+  // OR if it's the first time reading this content.
+  // We still update progressPercentage and lastReadAt regardless.
+
+  let newLastReadChapterId = chapterId;
+  let newLastReadChapterNumber = chapterNumber;
+
+  if (existingProgress) {
+    if (chapterNumber < existingProgress.lastReadChapterNumber) {
+      // User went back to an older chapter. Keep the "furthest" chapter as the last read point.
+      newLastReadChapterId = existingProgress.lastReadChapterId;
+      newLastReadChapterNumber = existingProgress.lastReadChapterNumber;
+    }
+  }
+
   const progress: ReadingProgress = {
     contentId,
-    lastReadChapterId: chapterId,
-    lastReadChapterNumber: chapterNumber,
+    lastReadChapterId: newLastReadChapterId,
+    lastReadChapterNumber: newLastReadChapterNumber,
     progressPercentage,
     lastReadAt: new Date().toISOString(),
   };
 
-  // Get existing progress
-  const progressMap = getReadingProgressMap();
   progressMap[contentId] = progress;
 
   // Save to localStorage

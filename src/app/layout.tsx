@@ -3,12 +3,18 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ToasterProvider } from "@/components/ui/toaster-provider";
 import { RootLayoutClient } from "./layout-client";
+import { Analytics } from "@vercel/analytics/react";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "AniMaDox - Manga, Manhwa, Anime & More",
   description: "Your ultimate destination for manga, manhwa, anime, novels, and manhua",
+  icons: {
+    icon: '/logo.svg',
+    shortcut: '/logo.svg',
+    apple: '/logo.svg',
+  },
 };
 
 export default function RootLayout({
@@ -22,6 +28,7 @@ export default function RootLayout({
         <RootLayoutClient>
           {children}
         </RootLayoutClient>
+        <Analytics />
         <ToasterProvider />
       </body>
     </html>

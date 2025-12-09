@@ -38,20 +38,20 @@ interface FetchContentsParams {
     limit?: number;
 }
 
-// Dynamic API URL - uses serverless API routes at /api
-const getApiBaseUrl = (): string => {
-    // For serverless deployment, API routes are at same origin
-    // This works for both local dev (localhost:8000/api) and production
-    return '/api';
-};
+// Supabase Edge Function URL - replace with your actual project ref
+const SUPABASE_PROJECT_REF = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF || 'dujvlcrbrusntcafoxqw';
+const EDGE_FUNCTION_BASE_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1`;
 
-const API_BASE_URL = getApiBaseUrl();
-
+/**
+ * Fetches content from Supabase Edge Function (faster cold starts)
+ * Falls back to direct Supabase query if Edge Function fails
+ */
 export async function fetchContents(params: FetchContentsParams): Promise<{ data: Content[] }> {
     try {
+        // Build query parameters
         const queryParams = new URLSearchParams();
         if (params.contentType && params.contentType !== 'all') {
-            queryParams.append('contentType', params.contentType);
+            queryParams.append('type', params.contentType);
         }
         if (params.search) {
             queryParams.append('search', params.search);
@@ -60,20 +60,52 @@ export async function fetchContents(params: FetchContentsParams): Promise<{ data
             queryParams.append('limit', params.limit.toString());
         }
 
-        const response = await fetch(`${API_BASE_URL}/content?${queryParams.toString()}`);
+        // Call Edge Function (no auth needed - function uses service role key)
+        const response = await fetch(
+            `${EDGE_FUNCTION_BASE_URL}/get-browse-content?${queryParams.toString()}`,
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
 
         if (!response.ok) {
-            throw new Error('Failed to load content');
+            throw new Error(`Edge function returned ${response.status}`);
         }
 
         const result = await response.json();
-        return { data: result.data || [] };
+        return { data: (result.data as Content[]) || [] };
     } catch (error: unknown) {
-        // In production, return empty array on API failure rather than bundling mock data
-        // This reduces bundle size by ~3KB
-        if (process.env.NODE_ENV === 'development') {
-            console.warn('[API] Fetch failed, returning empty array:', error);
+        console.error('[API] Edge function failed, falling back to direct query:', error);
+
+        // Fallback to direct Supabase query if Edge Function fails
+        try {
+            const { supabase } = await import('@/lib/supabase');
+
+            let query = supabase
+                .from('content')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (params.contentType && params.contentType !== 'all') {
+                query = query.eq('type', params.contentType);
+            }
+            if (params.search) {
+                query = query.ilike('title', `%${params.search}%`);
+            }
+            if (params.limit) {
+                query = query.limit(params.limit);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            return { data: (data as Content[]) || [] };
+        } catch (fallbackError) {
+            console.error('[API] Fallback also failed:', fallbackError);
+            return { data: [] };
         }
-        return { data: [] };
     }
 }

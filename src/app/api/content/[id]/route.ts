@@ -4,7 +4,7 @@ import { Content } from '@/lib/types';
 
 // Simple in-memory cache for content (edge-compatible)
 const contentCache = new Map<string, { data: Content; timestamp: number }>();
-const CACHE_TTL = 60000; // 1 minute cache
+const CACHE_TTL = 10000; // 10 seconds cache
 
 export async function GET(
     request: NextRequest,

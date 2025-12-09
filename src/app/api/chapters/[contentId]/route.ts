@@ -4,7 +4,7 @@ import { Chapter } from '@/lib/types';
 
 // Simple in-memory cache for chapters (edge-compatible)
 const chaptersCache = new Map<string, { data: Chapter[]; timestamp: number }>();
-const CACHE_TTL = 60000; // 1 minute cache
+const CACHE_TTL = 10000; // 10 seconds cache (short to reflect new chapters quickly)
 
 export async function GET(
     request: NextRequest,

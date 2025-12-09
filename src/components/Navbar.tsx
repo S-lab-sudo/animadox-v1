@@ -5,11 +5,22 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Menu, X } from 'lucide-react';
+import { Search, Menu, X, LogOut, User as UserIcon } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden';
 import { useSearch } from '@/hooks/useSearch';
 import { SearchResultsPopup } from '@/components/SearchResultsPopup';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface NavbarProps {
   searchQuery: string;
@@ -26,14 +37,96 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
   const [showDesktopSearch, setShowDesktopSearch] = useState(false);
   const desktopSearchRef = useRef<HTMLFormElement>(null);
 
-  const { 
-    query: searchQuery2, 
-    results, 
-    loading, 
-    error, 
-    handleSearch: handleSearch2, 
-    clearSearch 
+  const {
+    query: searchQuery2,
+    results,
+    loading,
+    error,
+    handleSearch: handleSearch2,
+    clearSearch
   } = useSearch();
+
+  const { user, signInWithGoogle, signOut } = useAuth();
+
+  // Notification Count State
+  const [unreadCount, setUnreadCount] = useState(0);
+  const lastNotificationFetch = useRef<number>(0);
+  const NOTIFICATION_CACHE_TTL = 30000; // 30 seconds
+
+  // Edge Function URL
+  const SUPABASE_PROJECT_REF = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF || 'dujvlcrbrusntcafoxqw';
+  const EDGE_FUNCTION_URL = `https://${SUPABASE_PROJECT_REF}.supabase.co/functions/v1/get-notifications`;
+
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const fetchUnread = async (force = false) => {
+      // Throttle: Skip if fetched within TTL (unless forced)
+      const now = Date.now();
+      if (!force && now - lastNotificationFetch.current < NOTIFICATION_CACHE_TTL) {
+        console.log('[Navbar] Notification fetch throttled');
+        return;
+      }
+      lastNotificationFetch.current = now;
+
+      try {
+        // Try Edge Function first (faster cold start, no auth needed)
+        const response = await fetch(
+          `${EDGE_FUNCTION_URL}?user_id=${user.id}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (response.ok) {
+          const result = await response.json();
+          setUnreadCount(result.count || 0);
+          return;
+        }
+        throw new Error('Edge function failed');
+      } catch (error) {
+        console.warn('[Navbar] Edge function failed, falling back to direct query:', error);
+        // Fallback to direct Supabase query
+        const { count } = await supabase
+          .from('user_notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_read', false);
+
+        setUnreadCount(count || 0);
+      }
+    };
+
+    // Initial fetch
+    fetchUnread(true);
+
+    // Realtime subscription for new notifications (updates are pushed, no polling needed)
+    const channel = supabase
+      .channel('navbar-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${user.id}` },
+        () => {
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  // Close mobile menu when route changes
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (mobileSearchOpen && searchInputRef.current) {
@@ -141,16 +234,27 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
             >
               Browse
             </Link>
-            <Link 
-              href="/updates" 
-              prefetch={false} 
-              className={`px-4 py-2 transition-all duration-300 rounded cursor-pointer ${
+            {/* Updates Link - Disabled for guests */}
+            <Link
+              href={user ? "/updates" : "#"}
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                }
+              }}
+              className={`relative px-4 py-2 transition-all duration-300 rounded cursor-pointer ${
                 isActive('/updates')
                   ? 'bg-orange-500 text-white border border-orange-500 shadow-lg shadow-orange-500/30'
                   : 'text-foreground hover:text-orange-500 border border-border hover:border-orange-500'
-              }`}
+              } ${!user ? 'opacity-50 cursor-not-allowed text-gray-600 hover:text-gray-600' : ''}`}
+              title={!user ? "Login to view updates" : ""}
             >
               Updates
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
           </div>
 
@@ -180,11 +284,47 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
             </div>
           </form>
 
-          {/* Desktop Login */}
+          {/* Desktop Login / User Menu */}
           <div className="hidden md:block">
-            <Button variant="default" className="bg-orange-500 hover:bg-orange-600 text-white border border-orange-500 rounded cursor-pointer">
-              Login
-            </Button>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full cursor-pointer hover:opacity-80 transition-opacity">
+                    <Avatar className="h-8 w-8 cursor-pointer">
+                      <AvatarImage 
+                        src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+                        alt={user.user_metadata?.full_name || user.user_metadata?.name || 'User'} 
+                        referrerPolicy="no-referrer"
+                      />
+                      <AvatarFallback className="bg-orange-500 text-white font-bold">
+                        {user.email?.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-zinc-950 border-zinc-800 text-white" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none text-white">{user.user_metadata?.full_name}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-zinc-800" />
+                  <DropdownMenuItem className="cursor-pointer focus:bg-zinc-800 focus:text-white" onClick={signOut}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                onClick={signInWithGoogle}
+                variant="default" 
+                className="bg-orange-500 hover:bg-orange-600 text-white border border-orange-500 rounded cursor-pointer"
+              >
+                Login with Google
+              </Button>
+            )}
           </div>
 
           {/* Mobile: Search Button + Menu Toggle */}
@@ -255,9 +395,40 @@ export const Navbar = ({ searchQuery, onSearchChange, showOnScroll = true }: Nav
                   
                   {/* Second Section: Login Button */}
                   <div className="flex-shrink-0">
-                    <Button variant="default" className="w-full bg-orange-500 hover:bg-orange-600 text-white border border-orange-500 rounded cursor-pointer">
-                      Login
-                    </Button>
+                    {user ? (
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-3 px-4">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage 
+                              src={user.user_metadata?.avatar_url || user.user_metadata?.picture} 
+                              alt={user.user_metadata?.full_name || 'User'} 
+                              referrerPolicy="no-referrer"
+                            />
+                            <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-white">{user.user_metadata?.full_name}</span>
+                            <span className="text-xs text-muted-foreground">{user.email}</span>
+                          </div>
+                        </div>
+                         <Button 
+                          onClick={signOut}
+                          variant="outline" 
+                          className="w-full border-red-500 text-red-500 hover:bg-red-500/10"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Log out
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button 
+                        onClick={signInWithGoogle}
+                        variant="default" 
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white border border-orange-500 rounded cursor-pointer"
+                      >
+                        Login with Google
+                      </Button>
+                    )}
                   </div>
                 </div>
               </SheetContent>
