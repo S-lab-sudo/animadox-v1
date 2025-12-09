@@ -316,49 +316,36 @@ export default function ReaderPage() {
   }, [lastScrollY]);
 
   // --- AD COMPLETION HELPERS ---
-  const SocialBarAd = () => {
-    // Generate a stable ID for this component instance
-    const adContainerId = useRef(`ad-container-${Math.random().toString(36).substr(2, 9)}`).current;
+  const NativeBannerAd = () => {
+    // The script looks for this specific container ID.
+    // NOTE: If multiple banners are on the same page, typical ad scripts only fill the first one matching the ID.
+    // However, we will render it as requested.
+    const containerId = "container-14f2871f9878b2714af48d0ba9d0af6e";
 
     useEffect(() => {
-      // Social Bar Script
       const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = '//pl28217897.effectivegatecpm.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js';
       script.async = true;
+      script.dataset.cfasync = "false";
+      script.src = "//pl28225883.effectivegatecpm.com/14f2871f9878b2714af48d0ba9d0af6e/invoke.js";
       
-      const container = document.getElementById(adContainerId);
+      const container = document.getElementById(containerId);
       
       if (container) {
+          // Clear previous content if any to prevent duplicates if react re-mounts
+          container.innerHTML = ''; 
           container.appendChild(script);
-      } else {
-         // Fallback usually shouldn't happen if mounted, but okay
-         console.warn("Ad container not found, appending to body");
-         document.body.appendChild(script);
       }
       
       return () => {
-          if (container && container.contains(script)) {
-              try {
-                container.removeChild(script);
-              } catch (e) {
-                // Ignore removal errors
-              }
-          } else if (document.body && document.body.contains(script)){
-             try {
-                document.body.removeChild(script);
-             } catch (e) {
-                // Ignore
-             }
+          if (container) {
+              container.innerHTML = '';
           }
       };
-    }, []); // Empty dependency array is fine since adContainerId is stable
+    }, []);
 
     return (
-      <div id={adContainerId} className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
-          <div className="text-xs text-muted-foreground/30 uppercase tracking-widest text-center w-full">
-            Advertisement
-          </div>
+      <div className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
+          <div id={containerId} className="w-full flex justify-center"></div>
       </div>
     );
   };
@@ -808,7 +795,7 @@ export default function ReaderPage() {
                           )}
                         </div>
                         {/* Dynamic Ad Insertion */}
-                        {!isLocked && adPositions.has(pageIdx) && <SocialBarAd />}
+                        {!isLocked && adPositions.has(pageIdx) && <NativeBannerAd />}
                       </div>
                     );
                   } catch (err) {
