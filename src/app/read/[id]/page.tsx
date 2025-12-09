@@ -316,43 +316,32 @@ export default function ReaderPage() {
   }, [lastScrollY]);
 
   // --- AD COMPLETION HELPERS ---
-  const NativeBannerAd = () => {
-    // The script looks for this specific container ID.
-    // Script: //pl28225883.effectivegatecpm.com/14f2871f9878b2714af48d0ba9d0af6e/invoke.js
-    const containerId = "container-14f2871f9878b2714af48d0ba9d0af6e";
-
-    useEffect(() => {
-      // Create script element
-      const script = document.createElement('script');
-      script.async = true;
-      script.dataset.cfasync = "false";
-      script.src = "//pl28225883.effectivegatecpm.com/14f2871f9878b2714af48d0ba9d0af6e/invoke.js";
-      
-      // Append strictly to body, NOT to the container itself
-      // This avoids recursive or placement issues since the script targets the container by ID
-      document.body.appendChild(script);
-      
-      return () => {
-          // Cleanup script
-          try {
-            if (document.body.contains(script)){
-               document.body.removeChild(script);
-            }
-          } catch (e) {
-             console.error("Ad cleanup error", e);
-          }
-          
-          // Clear container
-          const container = document.getElementById(containerId);
-          if (container) {
-              container.innerHTML = '';
-          }
-      };
-    }, []);
+  const HighPerfAd = () => {
+    const adCode = `
+      <div style="display: flex; justify-content: center;">
+        <script type="text/javascript">
+          atOptions = {
+            'key' : '3af71c0f6d71552c2fa7eb97e2e727e7',
+            'format' : 'iframe',
+            'height' : 300,
+            'width' : 160,
+            'params' : {}
+          };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/3af71c0f6d71552c2fa7eb97e2e727e7/invoke.js"></script>
+      </div>
+    `;
 
     return (
-      <div className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
-          <div id={containerId} className="w-full flex justify-center min-h-[50px]"></div>
+      <div className="my-6 py-4 flex justify-center items-center min-h-[320px] bg-muted/20 rounded-lg overflow-hidden">
+        <iframe
+          srcDoc={adCode}
+          width="320" // Giving it a bit more width than 160 just in case
+          height="320"
+          style={{ border: 'none', overflow: 'hidden' }}
+          scrolling="no"
+          title="Advertisement"
+        />
       </div>
     );
   };
@@ -802,7 +791,7 @@ export default function ReaderPage() {
                           )}
                         </div>
                         {/* Dynamic Ad Insertion */}
-                        {!isLocked && adPositions.has(pageIdx) && <NativeBannerAd />}
+                        {!isLocked && adPositions.has(pageIdx) && <HighPerfAd />}
                       </div>
                     );
                   } catch (err) {
