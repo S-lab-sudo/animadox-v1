@@ -318,25 +318,32 @@ export default function ReaderPage() {
   // --- AD COMPLETION HELPERS ---
   const NativeBannerAd = () => {
     // The script looks for this specific container ID.
-    // NOTE: If multiple banners are on the same page, typical ad scripts only fill the first one matching the ID.
-    // However, we will render it as requested.
+    // Script: //pl28225883.effectivegatecpm.com/14f2871f9878b2714af48d0ba9d0af6e/invoke.js
     const containerId = "container-14f2871f9878b2714af48d0ba9d0af6e";
 
     useEffect(() => {
+      // Create script element
       const script = document.createElement('script');
       script.async = true;
       script.dataset.cfasync = "false";
       script.src = "//pl28225883.effectivegatecpm.com/14f2871f9878b2714af48d0ba9d0af6e/invoke.js";
       
-      const container = document.getElementById(containerId);
-      
-      if (container) {
-          // Clear previous content if any to prevent duplicates if react re-mounts
-          container.innerHTML = ''; 
-          container.appendChild(script);
-      }
+      // Append strictly to body, NOT to the container itself
+      // This avoids recursive or placement issues since the script targets the container by ID
+      document.body.appendChild(script);
       
       return () => {
+          // Cleanup script
+          try {
+            if (document.body.contains(script)){
+               document.body.removeChild(script);
+            }
+          } catch (e) {
+             console.error("Ad cleanup error", e);
+          }
+          
+          // Clear container
+          const container = document.getElementById(containerId);
           if (container) {
               container.innerHTML = '';
           }
@@ -345,7 +352,7 @@ export default function ReaderPage() {
 
     return (
       <div className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
-          <div id={containerId} className="w-full flex justify-center"></div>
+          <div id={containerId} className="w-full flex justify-center min-h-[50px]"></div>
       </div>
     );
   };

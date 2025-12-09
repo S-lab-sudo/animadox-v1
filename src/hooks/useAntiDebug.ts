@@ -23,12 +23,23 @@ export const useAntiDebug = () => {
             }
         };
 
-        // 3. Debugger Loop (The "Tricky" Pause)
+        // 3. Debugger Loop (The "Tricky" Pause & Redirect)
         // This constantly calls 'debugger', which pauses execution if DevTools is open.
-        // If DevTools is closed, it does nothing perceptible.
+        // We measure time to detect if parsing happened.
         const antiDebugLoop = setInterval(() => {
-            // We use an anonymous function constructor to make it harder to find/remove by static analysis source maps
+            const start = Date.now();
+
+            // Execute debugger statement
             (function () { }.constructor('debugger')());
+
+            const end = Date.now();
+
+            // If execution took longer than 100ms, it means the debugger paused execution
+            // This implies DevTools is open.
+            if (end - start > 100) {
+                // Redirect user to home page effectively "soft locking" them out of context
+                window.location.replace('/');
+            }
         }, 500); // Check every 500ms (balanced to avoid freezing too hard, but annoying enough)
 
         document.addEventListener('contextmenu', handleContextMenu);
