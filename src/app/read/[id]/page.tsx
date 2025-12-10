@@ -53,6 +53,38 @@ interface ActiveChapter {
   startIndex: number; // Global index where this chapter starts (for sequential loading)
 }
 
+// --- AD COMPONENTS ---
+const HighPerfAd = () => {
+    // Memoized ad component to prevent re-renders
+    const adCode = `
+      <div style="display: flex; justify-content: center;">
+        <script type="text/javascript">
+          atOptions = {
+            'key' : '3af71c0f6d71552c2fa7eb97e2e727e7',
+            'format' : 'iframe',
+            'height' : 300,
+            'width' : 160,
+            'params' : {}
+          };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/3af71c0f6d71552c2fa7eb97e2e727e7/invoke.js"></script>
+      </div>
+    `;
+
+    return (
+      <div className="my-6 py-4 flex justify-center items-center min-h-[320px] bg-muted/20 rounded-lg overflow-hidden">
+        <iframe
+          srcDoc={adCode}
+          width="320" 
+          height="320"
+          style={{ border: 'none', overflow: 'hidden' }}
+          scrolling="no"
+          title="Advertisement"
+        />
+      </div>
+    );
+};
+
 export default function ReaderPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -315,36 +347,7 @@ export default function ReaderPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  // --- AD COMPLETION HELPERS ---
-  const HighPerfAd = () => {
-    const adCode = `
-      <div style="display: flex; justify-content: center;">
-        <script type="text/javascript">
-          atOptions = {
-            'key' : '3af71c0f6d71552c2fa7eb97e2e727e7',
-            'format' : 'iframe',
-            'height' : 300,
-            'width' : 160,
-            'params' : {}
-          };
-        </script>
-        <script type="text/javascript" src="//www.highperformanceformat.com/3af71c0f6d71552c2fa7eb97e2e727e7/invoke.js"></script>
-      </div>
-    `;
 
-    return (
-      <div className="my-6 py-4 flex justify-center items-center min-h-[320px] bg-muted/20 rounded-lg overflow-hidden">
-        <iframe
-          srcDoc={adCode}
-          width="320" // Giving it a bit more width than 160 just in case
-          height="320"
-          style={{ border: 'none', overflow: 'hidden' }}
-          scrolling="no"
-          title="Advertisement"
-        />
-      </div>
-    );
-  };
 
   const TriggerPopunder = () => {
       // Popunder script: //pl28217868.effectivegatecpm.com/d5/4f/43/d54f43018bcdb3176b98c24874ce240a.js
@@ -352,7 +355,7 @@ export default function ReaderPage() {
       
       const script = document.createElement('script');
       script.type = 'text/javascript';
-      script.src = '//pl28217868.effectivegatecpm.com/d5/4f/43/d54f43018bcdb3176b98c24874ce240a.js';
+      script.src = '//unwindjokerago.com/d5/4f/43/d54f43018bcdb3176b98c24874ce240a.js';
       document.body.appendChild(script);
   };
 
