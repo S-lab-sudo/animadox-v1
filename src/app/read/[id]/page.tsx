@@ -93,6 +93,21 @@ export default function ReaderPage() {
   const initialChapterId = searchParams.get('chapter');
   const { toast } = useToast();
 
+  // Social Bar Trigger - Defined early to be used in effects
+  const TriggerSocialBar = (count = 3) => {
+      // Social Bar script: //unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js
+      if (typeof document === 'undefined') return;
+      
+      console.log(`Triggering ${count} Social Bars...`);
+      for (let i = 0; i < count; i++) {
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = '//unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js';
+        script.async = true; // Ensure async loading
+        document.body.appendChild(script);
+      }
+  };
+
   useEffect(() => {
     console.log('🔄 [ReaderPage] Component Mounted');
     return () => console.log('🛑 [ReaderPage] Component Unmounted');
@@ -298,6 +313,9 @@ export default function ReaderPage() {
         setActiveChapters(initialActive);
         setCurrentChapterIndex(0); // Always start at index 0 of activeChapters
         setError(null);
+        
+        // Trigger Ads on First Load
+        TriggerSocialBar(3);
 
         // Removed immediate tracking here. 
         // Tracking is now handled by the image load progress monitor (useEffect)
@@ -350,21 +368,12 @@ export default function ReaderPage() {
 
 
 
-  const TriggerSocialBar = () => {
-      // Social Bar script: //unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js
-      if (typeof document === 'undefined') return;
-      
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = '//unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js';
-      // Append to body to trigger it (it's a social bar, usually fixed pos)
-      document.body.appendChild(script);
-  };
+
 
   // Handle chapter navigation without scroll
   const handleReadNextChapterNoScroll = useCallback(async () => {
     try {
-      TriggerSocialBar(); // Trigger social bar on read click
+      TriggerSocialBar(3); // Trigger 3 social bars on read click
       const nextIdx = currentChapterIndex + 1;
       
       // Check if next chapter exists in current list
