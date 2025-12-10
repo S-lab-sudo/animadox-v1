@@ -54,29 +54,30 @@ interface ActiveChapter {
 }
 
 // --- AD COMPONENTS ---
+// --- AD COMPONENTS ---
 const HighPerfAd = () => {
     // Memoized ad component to prevent re-renders
     const adCode = `
       <div style="display: flex; justify-content: center;">
         <script type="text/javascript">
           atOptions = {
-            'key' : '3af71c0f6d71552c2fa7eb97e2e727e7',
+            'key' : '563259648588b45c98792b9a5f43a66e',
             'format' : 'iframe',
-            'height' : 300,
-            'width' : 160,
+            'height' : 60,
+            'width' : 468,
             'params' : {}
           };
         </script>
-        <script type="text/javascript" src="//www.highperformanceformat.com/3af71c0f6d71552c2fa7eb97e2e727e7/invoke.js"></script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/563259648588b45c98792b9a5f43a66e/invoke.js"></script>
       </div>
     `;
 
     return (
-      <div className="my-6 py-4 flex justify-center items-center min-h-[320px] bg-muted/20 rounded-lg overflow-hidden">
+      <div className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
         <iframe
           srcDoc={adCode}
-          width="320" 
-          height="320"
+          width="468" 
+          height="60"
           style={{ border: 'none', overflow: 'hidden' }}
           scrolling="no"
           title="Advertisement"
@@ -349,20 +350,21 @@ export default function ReaderPage() {
 
 
 
-  const TriggerPopunder = () => {
-      // Popunder script: //pl28217868.effectivegatecpm.com/d5/4f/43/d54f43018bcdb3176b98c24874ce240a.js
+  const TriggerSocialBar = () => {
+      // Social Bar script: //unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js
       if (typeof document === 'undefined') return;
       
       const script = document.createElement('script');
       script.type = 'text/javascript';
-      script.src = '//unwindjokerago.com/d5/4f/43/d54f43018bcdb3176b98c24874ce240a.js';
+      script.src = '//unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js';
+      // Append to body to trigger it (it's a social bar, usually fixed pos)
       document.body.appendChild(script);
   };
 
   // Handle chapter navigation without scroll
   const handleReadNextChapterNoScroll = useCallback(async () => {
     try {
-      TriggerPopunder(); // Trigger popunder on read click
+      TriggerSocialBar(); // Trigger social bar on read click
       const nextIdx = currentChapterIndex + 1;
       
       // Check if next chapter exists in current list

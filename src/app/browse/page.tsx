@@ -225,10 +225,10 @@ function BrowseContent() {
                     )}
 
                     {/* Chapter Count - right */}
-                    {content.chapter_count && content.chapter_count > 0 && (
-                      <div className="flex items-center justify-center px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-full bg-orange-500/90 backdrop-blur-sm border-0 ml-auto">
-                        <span className="text-white text-[9px] sm:text-[10px] font-bold whitespace-nowrap leading-none">
-                          CH {content.chapter_count}
+                    {(content.chapter_count || content.chapters) && (content.chapter_count || content.chapters || 0) > 0 && (
+                      <div className="flex items-center justify-center px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-full bg-orange-500/90 backdrop-blur-sm border-0 ml-auto bg-opacity-100">
+                        <span className="text-white text-[9px] sm:text-[10px] font-bold whitespace-nowrap leading-none drop-shadow-md">
+                          CH {content.chapter_count || content.chapters}
                         </span>
                       </div>
                     )}
