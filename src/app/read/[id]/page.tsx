@@ -94,7 +94,7 @@ export default function ReaderPage() {
   const { toast } = useToast();
 
   // Social Bar Trigger - Defined early to be used in effects
-  const TriggerSocialBar = (count = 3) => {
+  const TriggerSocialBar = (count = 2) => {
       // Social Bar script: //unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js
       if (typeof document === 'undefined') return;
       
@@ -315,7 +315,7 @@ export default function ReaderPage() {
         setError(null);
         
         // Trigger Ads on First Load
-        TriggerSocialBar(3);
+        TriggerSocialBar(2);
 
         // Removed immediate tracking here. 
         // Tracking is now handled by the image load progress monitor (useEffect)
@@ -373,7 +373,7 @@ export default function ReaderPage() {
   // Handle chapter navigation without scroll
   const handleReadNextChapterNoScroll = useCallback(async () => {
     try {
-      TriggerSocialBar(3); // Trigger 3 social bars on read click
+      TriggerSocialBar(2); // Trigger 2 social bars on read click
       const nextIdx = currentChapterIndex + 1;
       
       // Check if next chapter exists in current list
