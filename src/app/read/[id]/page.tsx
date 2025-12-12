@@ -642,7 +642,7 @@ export default function ReaderPage() {
       <Navbar searchQuery="" onSearchChange={() => {}} showOnScroll={showHeader} />
 
       {/* Reader Header - hides on scroll */}
-      <div className={`sticky top-16 z-40 bg-card/95 backdrop-blur-sm border-b border-border transition-all duration-300 ${
+      <div className={`sticky top-16 z-40 bg-black border-b border-border transition-all duration-300 ${
         showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
       }`}>
         <div className="max-w-4xl mx-auto px-4 py-3">
@@ -669,7 +669,7 @@ export default function ReaderPage() {
                     <ChevronDown className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="center" className="max-h-96 overflow-y-auto">
+                <DropdownMenuContent align="center" className="max-h-96 overflow-y-auto bg-black opacity-100">
                   {/* Sort chapters by number to ensure correct order */}
                   {[...allChaptersRef.current]
                     .sort((a, b) => a.number - b.number)
@@ -701,7 +701,7 @@ export default function ReaderPage() {
       {/* Reader Container */}
       <div 
         ref={containerRef} 
-        className="mx-auto px-4 py-8 transition-all duration-300"
+        className="mx-auto px-0 py-0 sm:px-4 sm:py-8 transition-all duration-300"
         style={{ 
           maxWidth: `${(zoom / 100) * 615}px` // Base width reduced to ~60% of original (was 1024px)
         }}

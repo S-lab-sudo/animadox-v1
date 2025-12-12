@@ -429,7 +429,7 @@ export default function ContentDetailPage() {
       <div className="border-b border-border bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between gap-3 overflow-x-auto no-scrollbar scroll-smooth">
-            <Link href="/">
+            <Link href="/browse">
               <Button className="bg-orange-500 hover:bg-orange-600 text-white rounded-lg h-8 sm:h-9 px-3 cursor-pointer transition-all duration-300 flex items-center gap-2">
                 <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span className="text-xs sm:text-sm font-medium">Back</span>

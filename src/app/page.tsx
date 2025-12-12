@@ -24,13 +24,7 @@ export default function LandingPage() {
     }
   };
 
-  const contentTypes = [
-    { icon: BookOpen, label: 'Manga', color: 'from-pink-500 to-rose-500' },
-    { icon: BookOpen, label: 'Manhwa', color: 'from-blue-500 to-cyan-500' },
-    { icon: BookOpen, label: 'Manhua', color: 'from-green-500 to-emerald-500' },
-    { icon: FileText, label: 'Novel', color: 'from-purple-500 to-violet-500' },
-    { icon: Tv, label: 'Anime', color: 'from-orange-500 to-amber-500' },
-  ];
+
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -80,8 +74,7 @@ export default function LandingPage() {
                 <span className="text-orange-500 font-semibold"> Manga</span>,
                 <span className="text-blue-400 font-semibold"> Manhwa</span>,
                 <span className="text-green-400 font-semibold"> Manhua</span>,
-                <span className="text-purple-400 font-semibold"> Novels</span>, and
-                <span className="text-amber-400 font-semibold"> Anime</span>
+                <span className="text-purple-400 font-semibold"> Novels</span>
                 <br className="hidden sm:block" />
                 — all in one platform.
               </p>
@@ -111,25 +104,7 @@ export default function LandingPage() {
               </div>
             </form>
 
-            {/* Content Type Pills */}
-            {mounted && (
-              <div className="flex flex-wrap justify-center gap-3 sm:gap-4 mb-12">
-                {contentTypes.map((type, index) => (
-                  <Link 
-                    key={type.label}
-                    href={`/browse?type=${type.label.toLowerCase()}`}
-                    className="group"
-                  >
-                    <div 
-                      className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-gradient-to-r ${type.color} border border-white/10 hover:border-white/30 transition-all duration-300 hover:scale-105 hover:shadow-lg cursor-pointer`}
-                    >
-                      <type.icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                      <span className="text-white font-medium text-sm sm:text-base">{type.label}</span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
+
 
             {/* CTA Button */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

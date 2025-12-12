@@ -5,6 +5,10 @@ export const useAntiDebug = () => {
         // ONLY run in production
         if (process.env.NODE_ENV !== 'production') return;
 
+        const redirectHome = () => {
+            window.location.replace('/');
+        };
+
         // 1. Disable Right Click
         const handleContextMenu = (e: MouseEvent) => {
             e.preventDefault();
@@ -19,13 +23,27 @@ export const useAntiDebug = () => {
                 (e.ctrlKey && e.code === 'KeyU')
             ) {
                 e.preventDefault();
+                redirectHome();
                 return false;
             }
         };
 
-        // 3. Debugger Loop (The "Tricky" Pause & Redirect)
-        // This constantly calls 'debugger', which pauses execution if DevTools is open.
-        // We measure time to detect if parsing happened.
+        // 3. Detect Resize (Docked DevTools)
+        // If the window's outer size is significantly larger than the inner size, DevTools might be open.
+        const handleResize = () => {
+            const threshold = 160;
+            const widthDiff = window.outerWidth - window.innerWidth;
+            const heightDiff = window.outerHeight - window.innerHeight;
+
+            if (widthDiff > threshold || heightDiff > threshold) {
+                redirectHome();
+            }
+        };
+
+        // Check initially
+        handleResize();
+
+        // 4. Debugger Loop (The "Tricky" Pause & Redirect)
         const antiDebugLoop = setInterval(() => {
             const start = Date.now();
 
@@ -35,19 +53,19 @@ export const useAntiDebug = () => {
             const end = Date.now();
 
             // If execution took longer than 100ms, it means the debugger paused execution
-            // This implies DevTools is open.
             if (end - start > 100) {
-                // Redirect user to home page effectively "soft locking" them out of context
-                window.location.replace('/');
+                redirectHome();
             }
-        }, 500); // Check every 500ms (balanced to avoid freezing too hard, but annoying enough)
+        }, 500);
 
         document.addEventListener('contextmenu', handleContextMenu);
         document.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('resize', handleResize);
 
         return () => {
             document.removeEventListener('contextmenu', handleContextMenu);
             document.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('resize', handleResize);
             clearInterval(antiDebugLoop);
         };
     }, []);

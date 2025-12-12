@@ -15,6 +15,7 @@ import { Star, Search } from 'lucide-react';
 import { Navbar } from '@/components/Navbar';
 import { useToast } from '@/hooks/use-toast';
 import { useContentContext } from '@/context/ContentContext';
+import { supabase } from '@/lib/supabase';
 
 const contentTypes = [
   { id: 'all', label: 'All' },
@@ -75,7 +76,7 @@ function BrowseContent() {
     loadContents(activeTab, searchQuery);
   }, [activeTab, searchQuery, loadContents]);
 
-  const handleRequestSubmit = (e: React.FormEvent) => {
+  const handleRequestSubmit = async (e: React.FormEvent) => {
     try {
       e.preventDefault();
       if (!requestTitle || !requestEmail || !requestVariant) {
@@ -87,6 +88,18 @@ function BrowseContent() {
         return;
       }
       
+      // Submit to Supabase
+      const { error } = await supabase
+        .from('content_requests')
+        .insert({
+          title: requestTitle,
+          email: requestEmail,
+          variant: requestVariant,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
       toast({
         title: "Request Submitted",
         description: `Your request for "${requestTitle}" has been submitted!`,
@@ -109,26 +122,7 @@ function BrowseContent() {
     <div className="min-h-screen bg-background">
       <Navbar searchQuery={searchQuery} onSearchChange={handleSearchChange} />
 
-      {/* Tab Navigation */}
-      <div className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-3 sm:py-4 lg:py-6">
-          <div className="flex md:flex-wrap gap-1.5 sm:gap-2 overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
-            {contentTypes.map((type) => (
-              <Button
-                key={type.id}
-                onClick={() => setActiveTab(type.id)}
-                variant={activeTab === type.id ? 'default' : 'outline'}
-                size="sm"
-                className={`min-w-[60px] sm:min-w-[80px] md:min-w-[100px] cursor-pointer flex-shrink-0 md:flex-shrink text-xs sm:text-sm px-2 sm:px-3 md:px-4 h-8 sm:h-9 md:h-10 ${
-                  activeTab === type.id ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''
-                }`}
-              >
-                {type.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
+
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-6 sm:py-8">
@@ -190,18 +184,18 @@ function BrowseContent() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   
                   {/* Top Badges Container - stacked on mobile */}
-                  <div className="absolute top-1.5 left-1.5 right-1.5 flex justify-between items-start gap-1">
+                  <div className="absolute top-1.5 left-1.5 right-1.5 flex justify-between items-center gap-1">
                     {/* Type Badge - left */}
                     <Badge 
                       variant="secondary"
-                      className="text-[9px] sm:text-[10px] font-bold uppercase bg-gray-900/90 text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-1 truncate max-w-[45%]"
+                      className="text-[7px] sm:text-xs font-bold uppercase bg-gray-900/90 text-white border-0 px-1.5 py-0.5 truncate max-w-[45%] text-center justify-center"
                     >
                       {content.type}
                     </Badge>
 
                     {/* Status Badge - right */}
                     <Badge 
-                      className="text-[9px] sm:text-[10px] font-bold bg-orange-500 text-white border-0 px-1.5 py-0.5 sm:px-2 sm:py-1 truncate max-w-[50%]"
+                      className="text-[7px] sm:text-xs font-bold bg-orange-500 text-white border-0 px-1.5 py-0.5 truncate max-w-[50%] text-center justify-center"
                       variant={
                         content.status === 'ongoing' ? 'default' :
                         content.status === 'completed' ? 'secondary' :
@@ -212,13 +206,12 @@ function BrowseContent() {
                     </Badge>
                   </div>
 
-                  {/* Bottom Badges Container */}
-                  <div className="absolute bottom-1.5 left-1.5 right-1.5 flex justify-between items-end">
+                  <div className="absolute bottom-1.5 left-1.5 right-1.5 flex justify-between items-end gap-1">
                     {/* Rating - left */}
                     {content.average_rating && content.average_rating > 0 && (
-                      <div className="flex items-center gap-0.5 px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-full bg-black/80 backdrop-blur-sm border-0">
+                      <div className="flex items-center gap-1 px-1.5 h-4 sm:h-6 rounded-full bg-black/80 backdrop-blur-sm border-0">
                         <Star className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 text-orange-500 fill-orange-500" />
-                        <span className="text-white text-[9px] sm:text-xs font-bold">
+                        <span className="text-white text-[7px] sm:text-xs font-bold">
                           {content.average_rating.toFixed(1)}
                         </span>
                       </div>
@@ -226,8 +219,8 @@ function BrowseContent() {
 
                     {/* Chapter Count - right */}
                     {(content.chapter_count || content.chapters) && (content.chapter_count || content.chapters || 0) > 0 && (
-                      <div className="flex items-center justify-center px-1.5 py-1 sm:px-2 sm:py-1.5 rounded-full bg-orange-500/90 backdrop-blur-sm border-0 ml-auto bg-opacity-100">
-                        <span className="text-white text-[9px] sm:text-[10px] font-bold whitespace-nowrap leading-none drop-shadow-md">
+                      <div className="flex items-center justify-center px-1.5 h-4 sm:h-6 rounded-full bg-orange-500/90 backdrop-blur-sm border-0 ml-auto bg-opacity-100">
+                        <span className="text-white text-[7px] sm:text-xs font-bold whitespace-nowrap leading-none drop-shadow-md">
                           CH {content.chapter_count || content.chapters}
                         </span>
                       </div>
@@ -293,46 +286,47 @@ function BrowseContent() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           {mounted && (
             <div className="mb-6">
-              <h4 className="text-lg font-semibold text-foreground mb-4 text-center">
-                Request Content
-              </h4>
+              <div className="text-center mb-4">
+                <h4 className="text-lg font-semibold text-foreground">
+                  Request Content
+                </h4>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 text-orange-500/80">
+                  (We can deliver what you request within 1 hour minimum)
+                </p>
+              </div>
               <form onSubmit={handleRequestSubmit} className="space-y-3">
                 <div className="flex flex-col md:flex-row gap-3">
                   <div className="flex-1">
-                    <Label htmlFor="title" className="text-foreground">Title</Label>
                     <Input
                       id="title"
                       type="text"
                       placeholder="Enter content title..."
                       value={requestTitle}
                       onChange={(e) => setRequestTitle(e.target.value)}
-                      className="mt-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                      className="focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                       autoComplete="off"
                     />
                   </div>
                   <div className="flex-1">
-                    <Label htmlFor="email" className="text-foreground">Email</Label>
                     <Input
                       id="email"
                       type="email"
                       placeholder="Enter your email..."
                       value={requestEmail}
                       onChange={(e) => setRequestEmail(e.target.value)}
-                      className="mt-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+                      className="focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
                       autoComplete="off"
                     />
                   </div>
                   <div className="flex-1">
-                    <Label htmlFor="variant" className="text-foreground">Variant</Label>
                     <Select value={requestVariant} onValueChange={setRequestVariant}>
-                      <SelectTrigger className="mt-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all">
+                      <SelectTrigger className="focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all">
                         <SelectValue placeholder="Select variant..." />
                       </SelectTrigger>
                       <SelectContent className="bg-card border-border">
                         <SelectItem value="manga">Manga</SelectItem>
                         <SelectItem value="manhwa">Manhwa</SelectItem>
                         <SelectItem value="manhua">Manhua</SelectItem>
-                        <SelectItem value="anime">Anime</SelectItem>
                         <SelectItem value="novel">Novel</SelectItem>
                       </SelectContent>
                     </Select>
