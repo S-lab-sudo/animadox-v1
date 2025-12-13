@@ -346,9 +346,9 @@ export default function ReaderPage() {
         } 
         // Scrolling UP
         else {
-          // Only show header if scrolled UP more than 150px
+          // Only show header if scrolled UP more than 600px
           // This prevents accidental triggers
-          if (lastScrollY - currentScrollY > 150) {
+          if (lastScrollY - currentScrollY > 600) {
             setShowHeader(true);
             setLastScrollY(currentScrollY);
           }
@@ -578,7 +578,7 @@ export default function ReaderPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar searchQuery="" onSearchChange={() => {}} showOnScroll={true} />
+
         
         {/* Header Skeleton */}
         <div className="sticky top-16 z-40 bg-card/95 backdrop-blur-sm border-b border-border h-14 w-full">
@@ -618,7 +618,7 @@ export default function ReaderPage() {
   if (error || activeChapters.length === 0) {
     return (
       <div className="min-h-screen bg-background">
-        <Navbar searchQuery="" onSearchChange={() => {}} showOnScroll={showHeader} />
+
         <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] gap-4">
           <p className="text-destructive text-lg">{error || 'No chapters available'}</p>
           <Link href={`/content/${contentId}`}>
@@ -634,10 +634,8 @@ export default function ReaderPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navbar searchQuery="" onSearchChange={() => {}} showOnScroll={showHeader} />
-
       {/* Reader Header - hides on scroll */}
-      <div className={`sticky top-16 z-40 bg-black border-b border-border transition-all duration-300 ${
+      <div className={`fixed top-0 left-0 right-0 z-40 bg-black border-b border-border transition-all duration-300 ${
         showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
       }`}>
         <div className="max-w-4xl mx-auto px-4 py-3">
@@ -696,7 +694,7 @@ export default function ReaderPage() {
       {/* Reader Container */}
       <div 
         ref={containerRef} 
-        className="mx-auto px-0 py-0 sm:px-4 sm:py-8 transition-all duration-300"
+        className="mx-auto px-0 py-0 sm:px-4 sm:py-8 pt-16 transition-all duration-300"
         style={{ 
           maxWidth: `${(zoom / 100) * 615}px` // Base width reduced to ~60% of original (was 1024px)
         }}
