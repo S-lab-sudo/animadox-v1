@@ -87,21 +87,42 @@ const HighPerfAd = () => {
 };
 
 const AdStack = () => {
-  const [showAds, setShowAds] = useState(false);
+  // Ads render immediately to get network priority over images
+  return (
+    <div className="flex flex-col gap-0 my-8 min-h-[300px]">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <HighPerfAd key={i} />
+      ))}
+    </div>
+  );
+};
+
+// Wrapper component that delays image loading to give ads network priority
+const DelayedImage = ({ src, alt, className, onLoad, onError }: { 
+  src: string; 
+  alt: string; 
+  className: string;
+  onLoad: (e: React.SyntheticEvent<HTMLImageElement>) => void;
+  onError: () => void;
+}) => {
+  const [shouldLoad, setShouldLoad] = useState(false);
 
   useEffect(() => {
-    // Defer ad rendering by 800ms to allow main content (images/text) to load first
-    // This prevents main thread blocking during the critical component mount phase
-    const timer = setTimeout(() => setShowAds(true), 800);
+    // Delay image loading by 1 second to give ads exclusive network priority
+    const timer = setTimeout(() => setShouldLoad(true), 1000);
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <div className={`flex flex-col gap-0 my-8 min-h-[300px] transition-opacity duration-700 ${showAds ? 'opacity-100' : 'opacity-0'}`}>
-      {showAds && [1, 2, 3, 4, 5].map((i) => (
-        <HighPerfAd key={i} />
-      ))}
-    </div>
+    <img
+      src={shouldLoad ? src : undefined}
+      data-src={src} // Store original src for debugging
+      alt={alt}
+      className={className}
+      onLoad={onLoad}
+      onError={onError}
+      loading="lazy"
+    />
   );
 };
 
@@ -807,7 +828,7 @@ export default function ReaderPage() {
                           className={`relative bg-muted overflow-hidden mb-0 ${isLocked ? 'hidden' : ''}`}
                         >
                           {shouldRender && page.image_url ? (
-                            <img
+                            <DelayedImage
                               src={page.image_url}
                               alt={`Page ${page.page_number}`}
                               className="w-full h-auto transition-opacity duration-500 opacity-0"

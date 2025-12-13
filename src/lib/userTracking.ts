@@ -259,7 +259,7 @@ async function syncReadingProgressToDatabase(
 
     if (!response.ok) {
       const errorText = await response.text();
-      let errorObj: any;
+      let errorObj: { error?: { code?: string } | string } | undefined;
       try {
         errorObj = JSON.parse(errorText);
       } catch {
@@ -267,7 +267,7 @@ async function syncReadingProgressToDatabase(
       }
 
       // Check for Foreign Key Violation (Session Missing) - Postgres Code 23503
-      if (errorObj?.error?.code === '23503' && !isRetry) {
+      if (typeof errorObj?.error === 'object' && errorObj.error.code === '23503' && !isRetry) {
         if (process.env.NODE_ENV === 'development') {
           console.warn('⚠️ [Tracking] Session missing in DB (FK Violation). Attempting to recreate and retry...');
         }
@@ -315,7 +315,7 @@ async function syncChapterVisitToDatabase(
 
     if (!response.ok) {
       const errorText = await response.text();
-      let errorObj: any;
+      let errorObj: { error?: { code?: string } | string } | undefined;
       try {
         errorObj = JSON.parse(errorText);
       } catch {
@@ -323,7 +323,7 @@ async function syncChapterVisitToDatabase(
       }
 
       // Check for Foreign Key Violation (Session Missing) - Postgres Code 23503
-      if (errorObj?.error?.code === '23503' && !isRetry) {
+      if (typeof errorObj?.error === 'object' && errorObj.error.code === '23503' && !isRetry) {
         if (process.env.NODE_ENV === 'development') {
           console.warn('⚠️ [Tracking] Session missing in DB (FK Violation). Attempting to recreate and retry...');
         }
