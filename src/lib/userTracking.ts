@@ -237,11 +237,13 @@ export function isChapterVisited(contentId: string, chapterId: string): boolean 
 async function syncReadingProgressToDatabase(
   sessionToken: string,
   contentId: string,
-  progress: ReadingProgress
+  progress: ReadingProgress,
+  isRetry = false
 ) {
   try {
     // Ensure session exists in database before syncing progress
-    await ensureSessionExists(sessionToken);
+    // If retrying, force the check
+    await ensureSessionExists(sessionToken, isRetry);
 
     const response = await fetch('/api/tracking/save-progress', {
       method: 'POST',
@@ -256,9 +258,29 @@ async function syncReadingProgressToDatabase(
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const errorText = await response.text();
+      let errorObj: any;
+      try {
+        errorObj = JSON.parse(errorText);
+      } catch {
+        errorObj = { error: errorText };
+      }
+
+      // Check for Foreign Key Violation (Session Missing) - Postgres Code 23503
+      if (errorObj?.error?.code === '23503' && !isRetry) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ [Tracking] Session missing in DB (FK Violation). Attempting to recreate and retry...');
+        }
+        // Force recreation of session
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem(SESSION_SYNCED_KEY);
+        }
+        // Recursive retry (once)
+        return syncReadingProgressToDatabase(sessionToken, contentId, progress, true);
+      }
+
       if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to sync reading progress:', error);
+        console.error(`Failed to sync reading progress (Status ${response.status}):`, JSON.stringify(errorObj, null, 2));
       }
     }
   } catch (error) {
@@ -271,11 +293,13 @@ async function syncChapterVisitToDatabase(
   sessionToken: string,
   chapterId: string,
   contentId: string,
-  visit: ChapterVisit
+  visit: ChapterVisit,
+  isRetry = false
 ) {
   try {
     // Ensure session exists in database before syncing chapter visit
-    await ensureSessionExists(sessionToken);
+    // If retrying, force the check
+    await ensureSessionExists(sessionToken, isRetry);
 
     const response = await fetch('/api/tracking/add-chapter-visit', {
       method: 'POST',
@@ -290,9 +314,29 @@ async function syncChapterVisitToDatabase(
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const errorText = await response.text();
+      let errorObj: any;
+      try {
+        errorObj = JSON.parse(errorText);
+      } catch {
+        errorObj = { error: errorText };
+      }
+
+      // Check for Foreign Key Violation (Session Missing) - Postgres Code 23503
+      if (errorObj?.error?.code === '23503' && !isRetry) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ [Tracking] Session missing in DB (FK Violation). Attempting to recreate and retry...');
+        }
+        // Force recreation of session
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem(SESSION_SYNCED_KEY);
+        }
+        // Recursive retry (once)
+        return syncChapterVisitToDatabase(sessionToken, chapterId, contentId, visit, true);
+      }
+
       if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to sync chapter visit:', error);
+        console.error(`Failed to sync chapter visit (Status ${response.status}):`, JSON.stringify(errorObj, null, 2));
       }
     }
   } catch (error) {
@@ -301,9 +345,9 @@ async function syncChapterVisitToDatabase(
 }
 
 // Ensure session token is created in database
-async function ensureSessionExists(sessionToken: string): Promise<void> {
+async function ensureSessionExists(sessionToken: string, force = false): Promise<void> {
   // Optimization: Check if we've already synced this session in the current browser session
-  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(SESSION_SYNCED_KEY) === 'true') {
+  if (!force && typeof sessionStorage !== 'undefined' && sessionStorage.getItem(SESSION_SYNCED_KEY) === 'true') {
     return;
   }
 

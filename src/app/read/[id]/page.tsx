@@ -88,7 +88,7 @@ const HighPerfAd = () => {
 
 const AdStack = () => {
   return (
-    <div className="flex flex-col gap-2.5 my-8">
+    <div className="flex flex-col gap-1 my-8">
       {[1, 2, 3, 4, 5].map((i) => (
         <HighPerfAd key={i} />
       ))}
@@ -335,19 +335,23 @@ export default function ReaderPage() {
     const handleScroll = () => {
       try {
         const currentScrollY = window.scrollY;
-        const scrollDifference = Math.abs(currentScrollY - lastScrollY);
-        const scrollThreshold = window.innerHeight * 0.05; // 5% of viewport height
-
-        if (scrollDifference > scrollThreshold) {
-          // Scrolling down
-          if (currentScrollY > lastScrollY) {
+        
+        // Scrolling DOWN
+        if (currentScrollY > lastScrollY) {
+          // Hide header if scrolled down more than 10px
+          if (currentScrollY - lastScrollY > 10) {
             setShowHeader(false);
-          } 
-          // Scrolling up
-          else {
-            setShowHeader(true);
+            setLastScrollY(currentScrollY);
           }
-          setLastScrollY(currentScrollY);
+        } 
+        // Scrolling UP
+        else {
+          // Only show header if scrolled UP more than 150px
+          // This prevents accidental triggers
+          if (lastScrollY - currentScrollY > 150) {
+            setShowHeader(true);
+            setLastScrollY(currentScrollY);
+          }
         }
       } catch (error) {
         console.error("Error in handleScroll:", error);
@@ -736,7 +740,7 @@ export default function ReaderPage() {
             )}
 
             {/* Ad Stack at START of Chapter (only if unlocked) */}
-            {!activeChapter.isLocked && (
+            {!activeChapter.isLocked && chapterIdx > 0 && (
                 <AdStack />
             )}
 

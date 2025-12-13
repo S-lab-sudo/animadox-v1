@@ -42,7 +42,10 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error saving reading progress:', error);
       return NextResponse.json(
-        { success: false, error: 'Unable to save progress. Please try again.' },
+        {
+          success: false,
+          error: process.env.NODE_ENV === 'development' ? error : 'Unable to save progress. Please try again.'
+        },
         { status: 500 }
       );
     }

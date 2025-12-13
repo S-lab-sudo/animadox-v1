@@ -34,7 +34,10 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating session:', error);
       return NextResponse.json(
-        { success: false, error: 'Unable to create session. Please try again.' },
+        {
+          success: false,
+          error: process.env.NODE_ENV === 'development' ? error : 'Unable to create session. Please try again.'
+        },
         { status: 500 }
       );
     }
