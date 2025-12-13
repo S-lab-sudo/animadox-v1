@@ -87,9 +87,18 @@ const HighPerfAd = () => {
 };
 
 const AdStack = () => {
+  const [showAds, setShowAds] = useState(false);
+
+  useEffect(() => {
+    // Defer ad rendering by 800ms to allow main content (images/text) to load first
+    // This prevents main thread blocking during the critical component mount phase
+    const timer = setTimeout(() => setShowAds(true), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
-    <div className="flex flex-col gap-1 my-8">
-      {[1, 2, 3, 4, 5].map((i) => (
+    <div className={`flex flex-col gap-0 my-8 min-h-[300px] transition-opacity duration-700 ${showAds ? 'opacity-100' : 'opacity-0'}`}>
+      {showAds && [1, 2, 3, 4, 5].map((i) => (
         <HighPerfAd key={i} />
       ))}
     </div>
@@ -116,7 +125,7 @@ export default function ReaderPage() {
   const [isMuted, setIsMuted] = useState(false);
   const [showHeader, setShowHeader] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [zoom, setZoom] = useState(100);
+  const [zoom, setZoom] = useState(90);
 
   const [contentTitle, setContentTitle] = useState<string>('');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -130,8 +139,43 @@ export default function ReaderPage() {
   }, []);
 
   // Save zoom to local storage
+  // Save zoom to local storage and Handle Scroll Adjustment
+  const prevZoomRef = useRef(zoom);
+
   useEffect(() => {
     localStorage.setItem('reader-zoom', zoom.toString());
+  }, [zoom]);
+
+  // Adjust scroll position when zooming to prevent "jumping"
+  // We use useLayoutEffect (or useEffect here since we're in Next.js which might complain about useLayoutEffect on server, 
+  // but this is 'use client' so it's fine. effective "useLayoutEffect" behavior is desired)
+  useEffect(() => {
+    const handleScrollAdjustment = () => {
+        const oldZoom = prevZoomRef.current;
+        const newZoom = zoom;
+        
+        if (oldZoom !== newZoom) {
+            const scaleFactor = newZoom / oldZoom;
+            const currentScroll = window.scrollY;
+            
+            // Adjust scroll proportionally
+            // If dragging Zoom IN (bigger), we are viewing a smaller relative portion, page gets taller.
+            // We need to be further down (pixels) to stay at same relative spot.
+            // NewScroll = OldScroll * ScaleFactor
+            
+            // Only adjust if we have scrolled (don't mess with top 0)
+            if (currentScroll > 0) {
+                 window.scrollTo({
+                     top: currentScroll * scaleFactor,
+                     behavior: 'auto' // Instant jump, no smooth scroll
+                 });
+            }
+            
+            prevZoomRef.current = newZoom;
+        }
+    };
+    
+    handleScrollAdjustment();
   }, [zoom]);
   
   // Sequential Loading State (Waterfall) - MangaFlow approach
@@ -346,9 +390,9 @@ export default function ReaderPage() {
         } 
         // Scrolling UP
         else {
-          // Only show header if scrolled UP more than 600px
+          // Only show header if scrolled UP more than 800px
           // This prevents accidental triggers
-          if (lastScrollY - currentScrollY > 600) {
+          if (lastScrollY - currentScrollY > 800) {
             setShowHeader(true);
             setLastScrollY(currentScrollY);
           }
@@ -696,7 +740,8 @@ export default function ReaderPage() {
         ref={containerRef} 
         className="mx-auto px-0 py-0 sm:px-4 sm:py-8 pt-16 transition-all duration-300"
         style={{ 
-          maxWidth: `${(zoom / 100) * 615}px` // Base width reduced to ~60% of original (was 1024px)
+          maxWidth: `${(zoom / 100) * 615}px`, // Base width reduced to ~60% of original (was 1024px)
+          overflowAnchor: 'none' // Prevent scroll jumping when resizing/zooming
         }}
       >
         {activeChapters.map((activeChapter, chapterIdx) => {

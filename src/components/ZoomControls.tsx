@@ -60,82 +60,34 @@ export const ZoomControls = ({ zoom, onZoomChange }: ZoomControlsProps) => {
 
       {/* Zoom Controls Panel */}
       {isOpen && (
-        <div className="absolute bottom-16 left-0 bg-black/90 backdrop-blur-md border border-orange-500/50 rounded-lg shadow-xl p-4 min-w-[260px] text-white">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Zoom: {zoom}%</span>
-            </div>
-
-            {/* Zoom Slider */}
-            <div className="flex items-center gap-3 py-2">
-              <style jsx>{`
-                ::-webkit-slider-track {
-                  background: #374151;
-                  border-radius: 5px;
-                  height: 6px;
-                }
-                ::-webkit-slider-thumb {
-                  -webkit-appearance: none;
-                  appearance: none;
-                  width: 16px;
-                  height: 16px;
-                  border-radius: 50%;
-                  background: #f97316;
-                  cursor: pointer;
-                  border: 2px solid #ea580c;
-                }
-                ::-moz-range-track {
-                  background: #374151;
-                  border-radius: 5px;
-                  height: 6px;
-                }
-                ::-moz-range-thumb {
-                  width: 16px;
-                  height: 16px;
-                  border-radius: 50%;
-                  background: #f97316;
-                  cursor: pointer;
-                  border: 2px solid #ea580c;
-                }
-              `}</style>
-              <Button
-                onClick={handleZoomOut}
-                size="icon"
-                variant="outline"
-                className="h-8 w-8 shrink-0 cursor-pointer"
-                disabled={zoom <= 40}
-              >
-                <ZoomOut className="h-4 w-4" />
-              </Button>
-
-              <Slider
-                value={[zoom]}
-                onValueChange={(value) => onZoomChange(value[0])}
-                min={40}
-                max={190}
-                step={5}
-                className="flex-1 cursor-pointer h-8 px-1"
-              />
-
-              <Button
-                onClick={handleZoomIn}
-                size="icon"
-                variant="outline"
-                className="h-8 w-8 shrink-0 cursor-pointer"
-                disabled={zoom >= 190}
-              >
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Reset Button */}
+        <div className="absolute bottom-16 left-0 bg-black/90 backdrop-blur-md border border-orange-500/50 rounded-lg shadow-xl p-2 min-w-[60px] text-white">
+          <div className="flex flex-col gap-2 items-center">
+            <style jsx>{`
+                /* Ensure no scroll bars appear in potential edge cases */
+                .zoom-panel { scrollbar-width: none; }
+            `}</style>
             <Button
-              onClick={() => onZoomChange(120)}
-              variant="ghost"
-              size="sm"
-              className="w-full cursor-pointer"
+              onClick={handleZoomIn}
+              size="icon"
+              variant="outline"
+              className="h-10 w-10 cursor-pointer bg-transparent border-orange-500/30 hover:bg-orange-500 hover:text-white transition-colors"
+              disabled={zoom >= 190}
             >
-              Reset to Default
+              <ZoomIn className="h-5 w-5" />
+            </Button>
+
+            <div className="text-center text-xs font-mono text-muted-foreground w-full py-1 border-t border-b border-white/10 select-none">
+              {zoom}%
+            </div>
+
+            <Button
+              onClick={handleZoomOut}
+              size="icon"
+              variant="outline"
+              className="h-10 w-10 cursor-pointer bg-transparent border-orange-500/30 hover:bg-orange-500 hover:text-white transition-colors"
+              disabled={zoom <= 40}
+            >
+              <ZoomOut className="h-5 w-5" />
             </Button>
           </div>
         </div>
