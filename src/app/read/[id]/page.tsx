@@ -73,7 +73,7 @@ const HighPerfAd = () => {
     `;
 
     return (
-      <div className="my-6 py-4 flex justify-center items-center min-h-[100px] bg-muted/20 rounded-lg overflow-hidden">
+      <div className="flex justify-center items-center bg-muted/20 rounded-lg overflow-hidden">
         <iframe
           srcDoc={adCode}
           width="468" 
@@ -86,27 +86,22 @@ const HighPerfAd = () => {
     );
 };
 
+const AdStack = () => {
+  return (
+    <div className="flex flex-col gap-2.5 my-8">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <HighPerfAd key={i} />
+      ))}
+    </div>
+  );
+};
+
 export default function ReaderPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const contentId = params.id as string;
   const initialChapterId = searchParams.get('chapter');
   const { toast } = useToast();
-
-  // Social Bar Trigger - Defined early to be used in effects
-  const TriggerSocialBar = (count = 2) => {
-      // Social Bar script: //unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js
-      if (typeof document === 'undefined') return;
-      
-      console.log(`Triggering ${count} Social Bars...`);
-      for (let i = 0; i < count; i++) {
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.src = '//unwindjokerago.com/e4/9b/6f/e49b6f0dc537c58da934bec411443b5e.js';
-        script.async = true; // Ensure async loading
-        document.body.appendChild(script);
-      }
-  };
 
   useEffect(() => {
     console.log('🔄 [ReaderPage] Component Mounted');
@@ -314,9 +309,6 @@ export default function ReaderPage() {
         setCurrentChapterIndex(0); // Always start at index 0 of activeChapters
         setError(null);
         
-        // Trigger Ads on First Load
-        TriggerSocialBar(2);
-
         // Removed immediate tracking here. 
         // Tracking is now handled by the image load progress monitor (useEffect)
         // to prioritize image loading bandwidth.
@@ -373,7 +365,6 @@ export default function ReaderPage() {
   // Handle chapter navigation without scroll
   const handleReadNextChapterNoScroll = useCallback(async () => {
     try {
-      TriggerSocialBar(2); // Trigger 2 social bars on read click
       const nextIdx = currentChapterIndex + 1;
       
       // Check if next chapter exists in current list
@@ -610,7 +601,7 @@ export default function ReaderPage() {
               <div key={i} className="aspect-[2/3] bg-muted w-full relative overflow-hidden mb-0">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent skeleton-shimmer" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-12 h-12 rounded-full border-4 border-muted-foreground/20 border-t-muted-foreground/50 animate-spin" />
+                  {/* Spinner removed per user request */}
                 </div>
               </div>
             ))}
@@ -707,54 +698,50 @@ export default function ReaderPage() {
         }}
       >
         {activeChapters.map((activeChapter, chapterIdx) => {
-          // Calculate Ad positions for this chapter (approx 25%, 50%, 75%)
-          const totalPages = activeChapter.pages?.length || 0;
-          const adPositions = new Set<number>();
-          if (totalPages > 5) { // Only show interstitial ads if chapter is long enough
-              adPositions.add(Math.floor(totalPages * 0.25));
-              adPositions.add(Math.floor(totalPages * 0.50));
-              adPositions.add(Math.floor(totalPages * 0.75));
+          // Logic to hide future chapters
+          // Only show:
+          // 1. All PREVIOUS chapters in the list (if we keep them in memory, which we do until slide)
+          // 2. The CURRENT chapter
+          // 3. The IMMEDIATE NEXT chapter (locked)
+          // Hide anything beyond current + 1
+          if (chapterIdx > currentChapterIndex + 1) {
+              return null;
           }
 
           return (
           <div key={activeChapter.chapter.id} className="mb-2" data-chapter-id={activeChapter.chapter.id}>
-            {/* Chapter Header */}
+
+            {/* Persistent Chapter Card (Header/Divider) */}
             {chapterIdx > 0 && (
-              <div className="text-center mb-8 py-6 border-t border-border">
-                <h3 className="text-2xl font-bold text-foreground mb-2">
-                  Chapter {activeChapter.chapter.number}
-                </h3>
-                <p className="text-muted-foreground">{activeChapter.chapter.title}</p>
-              </div>
+                <div className="my-1 py-4 px-6 bg-card border border-border rounded-md flex items-center justify-between gap-4" id={`chapter-card-${activeChapter.chapter.id}`}>
+                  <div className="flex items-center gap-3">
+                    <div className="text-xl">
+                        {activeChapter.isLocked ? '🔒' : '📖'}
+                    </div>
+                    <div className="text-left">
+                      <h3 className="font-bold text-foreground text-sm">Chapter {activeChapter.chapter.number}</h3>
+                    </div>
+                  </div>
+                  {activeChapter.isLocked && (
+                    <Button
+                        onClick={handleReadNextChapterNoScroll}
+                        className="gap-2 bg-orange-500 hover:bg-orange-600 text-white cursor-pointer flex-shrink-0 h-7 px-3 text-xs"
+                        size="sm"
+                    >
+                        Read
+                        <ChevronDown className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+            )}
+
+            {/* Ad Stack at START of Chapter (only if unlocked) */}
+            {!activeChapter.isLocked && (
+                <AdStack />
             )}
 
             {/* Chapter Images */}
-            <div
-              className={`${
-                activeChapter.isLocked ? 'relative' : ''
-              }`}
-            >
-              {/* Compact ad-like button for locked chapters */}
-              {activeChapter.isLocked && (
-                <div className="my-6 py-4 px-6 bg-card border-2 border-orange-500/30 rounded-lg flex items-center justify-between gap-4" id={`locked-chapter-${activeChapter.chapter.id}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl">🔒</div>
-                    <div className="text-left">
-                      <h3 className="font-bold text-foreground">Chapter {activeChapter.chapter.number}</h3>
-                      <p className="text-sm text-muted-foreground">Click to read</p>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={handleReadNextChapterNoScroll}
-                    className="gap-2 bg-orange-500 hover:bg-orange-600 text-white cursor-pointer flex-shrink-0"
-                    size="sm"
-                  >
-                    Read
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </div>
-              )}
-
+            <div className={activeChapter.isLocked ? 'relative' : ''}>
               {/* Images */}
               {activeChapter.pages && activeChapter.pages.length > 0 ? (
                 activeChapter.pages.map((page, pageIdx) => {
@@ -804,8 +791,6 @@ export default function ReaderPage() {
                             </div>
                           )}
                         </div>
-                        {/* Dynamic Ad Insertion */}
-                        {!isLocked && adPositions.has(pageIdx) && <HighPerfAd />}
                       </div>
                     );
                   } catch (err) {
@@ -824,7 +809,10 @@ export default function ReaderPage() {
               )}
             </div>
 
-
+            {/* Ad Stack at END of Chapter (only if unlocked) */}
+            {!activeChapter.isLocked && (
+                <AdStack />
+            )}
 
             {/* Next Chapter Button - only show at end of chapter */}
             {chapterIdx === currentChapterIndex && (
@@ -836,8 +824,8 @@ export default function ReaderPage() {
           );
         })}
 
-        {/* End of content */}
-        <div className="mt-12 py-8 text-center border-t border-border">
+        {/* End of content - Footer removed/hidden per request */}
+        <div className="mt-12 py-8 text-center border-t border-border hidden">
           {isLoadingMore ? (
              <div className="flex flex-col items-center justify-center gap-4">
                 <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
