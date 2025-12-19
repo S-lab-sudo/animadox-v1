@@ -60,13 +60,17 @@ export async function fetchContents(params: FetchContentsParams): Promise<{ data
             queryParams.append('limit', params.limit.toString());
         }
 
-        // Call Edge Function (no auth needed - function uses service role key)
+        // Get Supabase anon key for edge function auth
+        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+        // Call Edge Function (requires anon key for auth)
         const response = await fetch(
             `${EDGE_FUNCTION_BASE_URL}/get-browse-content?${queryParams.toString()}`,
             {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseAnonKey}`,
                 },
             }
         );

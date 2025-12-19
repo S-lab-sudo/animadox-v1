@@ -31,6 +31,11 @@ export const useAntiDebug = () => {
         // 3. Detect Resize (Docked DevTools)
         // If the window's outer size is significantly larger than the inner size, DevTools might be open.
         const handleResize = () => {
+            // Skip on mobile devices where outerWidth/Height can be unreliable
+            if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                return;
+            }
+
             const threshold = 160;
             const widthDiff = window.outerWidth - window.innerWidth;
             const heightDiff = window.outerHeight - window.innerHeight;

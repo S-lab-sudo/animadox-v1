@@ -150,6 +150,34 @@ export default function ReaderPage() {
 
   const [contentTitle, setContentTitle] = useState<string>('');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [maxZoom, setMaxZoom] = useState(190); // Default max
+
+  // Calculate dynamic Max Zoom to prevent overscroll glitches on mobile
+  // Mobile browsers can glitch if we try to force width > 100vw while overflow logic fights back
+  useEffect(() => {
+    const handleResize = () => {
+        // Base content width is 615px at 100% zoom
+        const BASE_WIDTH = 615;
+        const viewportWidth = window.innerWidth;
+        
+        // Calculate max zoom that fits the screen
+        const fitWidthZoom = (viewportWidth / BASE_WIDTH) * 100;
+        
+        // Cap at 190 (our global max) but limit to fitWidthZoom if it's smaller (mobile)
+        // We round down to nearest for safer bounds
+        setMaxZoom(Math.min(190, Math.max(40, fitWidthZoom)));
+    };
+    
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleZoomChange = (newZoom: number) => {
+    // Double check clamp
+    const clampedZoom = Math.min(newZoom, maxZoom);
+    setZoom(clampedZoom);
+  };
 
   // Load zoom from local storage
   useEffect(() => {
@@ -162,6 +190,7 @@ export default function ReaderPage() {
   // Save zoom to local storage
   // Save zoom to local storage and Handle Scroll Adjustment
   const prevZoomRef = useRef(zoom);
+  const [isZooming, setIsZooming] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('reader-zoom', zoom.toString());
@@ -175,20 +204,32 @@ export default function ReaderPage() {
         const oldZoom = prevZoomRef.current;
         const newZoom = zoom;
         
-        if (oldZoom !== newZoom) {
+        if (oldZoom !== newZoom && oldZoom > 0) {
             const scaleFactor = newZoom / oldZoom;
-            const currentScroll = window.scrollY;
             
-            // Adjust scroll proportionally
-            // If dragging Zoom IN (bigger), we are viewing a smaller relative portion, page gets taller.
-            // We need to be further down (pixels) to stay at same relative spot.
-            // NewScroll = OldScroll * ScaleFactor
+            // Fixed header offset (pt-16 = 64px)
+            // This part of the page DOES NOT scale, so we must subtract it before calculating relative position
+            const fixedOffset = 64; 
+
+            // Calculate center of viewport relative to the SCALABLE content
+            const viewportHeight = window.innerHeight;
+            const currentScrollY = window.scrollY;
             
-            // Only adjust if we have scrolled (don't mess with top 0)
-            if (currentScroll > 0) {
+            // Relative Position = (Absolute Scroll - Fixed Offset) + Half Viewport
+            // We use Math.max(0) because if we are at top (scrollY < 64), we are in the fixed area
+            const relativeCenterY = Math.max(0, currentScrollY - fixedOffset) + (viewportHeight / 2);
+            
+            // Scale the relative position
+            const newRelativeCenterY = relativeCenterY * scaleFactor;
+            
+            // Convert back to absolute scroll position
+            // New Scroll = (New Relative Center - Half Viewport) + Fixed Offset
+            const newScrollY = Math.max(0, newRelativeCenterY - (viewportHeight / 2) + fixedOffset);
+
+            if (currentScrollY > 10) { // Only adjust if we're not at the very top
                  window.scrollTo({
-                     top: currentScroll * scaleFactor,
-                     behavior: 'auto' // Instant jump, no smooth scroll
+                     top: newScrollY,
+                     behavior: 'auto'
                  });
             }
             
@@ -698,7 +739,7 @@ export default function ReaderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-24 md:pb-0">
       {/* Reader Header - hides on scroll */}
       <div className={`fixed top-0 left-0 right-0 z-40 bg-black border-b border-border transition-all duration-300 ${
         showHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
@@ -919,7 +960,7 @@ export default function ReaderPage() {
       </div>
 
       {/* Floating Controls */}
-      <ZoomControls zoom={zoom} onZoomChange={setZoom} />
+      <ZoomControls zoom={zoom} onZoomChange={handleZoomChange} maxZoom={maxZoom} />
       <GoToTopButton />
     </div>
   );

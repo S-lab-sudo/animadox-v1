@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -8,40 +8,68 @@ import { Slider } from '@/components/ui/slider';
 interface ZoomControlsProps {
   zoom: number;
   onZoomChange: (zoom: number) => void;
+  maxZoom?: number; // Optional dynamic max limit
 }
 
-export const ZoomControls = ({ zoom, onZoomChange }: ZoomControlsProps) => {
+export const ZoomControls = ({ zoom, onZoomChange, maxZoom = 190 }: ZoomControlsProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const isZoomingRef = useRef(false); // Local lock for instant reaction
 
   useEffect(() => {
     const handleScroll = () => {
+      // 1. If currently zooming (locked), update lastScrollY but DO NOT hide
+      if (isZoomingRef.current) {
+        setLastScrollY(window.scrollY);
+        return;
+      }
+      
       const currentScrollY = window.scrollY;
       
-      // Show button only when scrolling UP or at the very top
+      // 2. Tolerance check (ignore tiny scrolls like < 10px which might be rounding errors)
+      if (Math.abs(currentScrollY - lastScrollY) < 10) return;
+
+      // 3. Show/Hide Logic
+      // Show when scrolling UP or at very top
+      // Hide when scrolling DOWN
       if (currentScrollY < lastScrollY || currentScrollY < 100) {
         setIsVisible(true);
       } else {
         setIsVisible(false);
-        setIsOpen(false); // Close panel when hiding
+        setIsOpen(false); 
       }
       
       setLastScrollY(currentScrollY);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
-  const handleZoomIn = () => {
-    const newZoom = Math.min(zoom + 10, 190);
+  const handleZoomInteraction = (newZoom: number) => {
+    // LOCK visibility immediately
+    isZoomingRef.current = true;
+    setIsVisible(true); // Force show
+    
     onZoomChange(newZoom);
+
+    // Release lock after enough time for scroll adjustment to settle
+    setTimeout(() => {
+      isZoomingRef.current = false;
+      // Update lastScrollY to current to prevent immediate hide on next small move
+      setLastScrollY(window.scrollY); 
+    }, 600);
+  };
+
+  const handleZoomIn = () => {
+    const newZoom = Math.min(zoom + 10, maxZoom);
+    handleZoomInteraction(newZoom);
   };
 
   const handleZoomOut = () => {
     const newZoom = Math.max(zoom - 10, 40);
-    onZoomChange(newZoom);
+    handleZoomInteraction(newZoom);
   };
 
   return (
@@ -71,13 +99,13 @@ export const ZoomControls = ({ zoom, onZoomChange }: ZoomControlsProps) => {
               size="icon"
               variant="outline"
               className="h-10 w-10 cursor-pointer bg-transparent border-orange-500/30 hover:bg-orange-500 hover:text-white transition-colors"
-              disabled={zoom >= 190}
+              disabled={Number(zoom.toFixed(1)) >= Number(maxZoom.toFixed(1))}
             >
               <ZoomIn className="h-5 w-5" />
             </Button>
 
             <div className="text-center text-xs font-mono text-muted-foreground w-full py-1 border-t border-b border-white/10 select-none">
-              {zoom}%
+              {Math.round(zoom)}%
             </div>
 
             <Button
